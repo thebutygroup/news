@@ -36,8 +36,11 @@ crude. It proves the plumbing works.
    - Or put the web container on cloudflared's Docker network. Set `TUNNEL_NETWORK` in `.env`,
      run `docker compose -f docker-compose.yml -f docker-compose.tunnel.yml up -d --build`,
      and point the hostname at `http://news-web:8080`.
-4. **Cloudflare Access.** Add a self-hosted application for `news.thebutygroup.com` with a
-   policy that allows your team's emails. Copy two values into `.env`:
+4. **Cloudflare Access.** Add a self-hosted application with a policy that allows your team's
+   emails. For its domain, use `news.thebutygroup.com` with the path `login`. That keeps the site
+   readable by anyone, and signing in (the "Sign in" link, which goes to `/login`) is what lets
+   people vote, comment and tag. To make the whole site private instead, leave the path empty.
+   Copy two values into `.env`:
    - `CF_ACCESS_TEAM_DOMAIN`: something like `yourteam.cloudflareaccess.com`
    - `CF_ACCESS_AUD`: the Application Audience (AUD) tag on the app's overview page
 5. **Admins.** Put your email in `ADMIN_EMAILS`. Admins can start scans, approve sources and
@@ -51,8 +54,9 @@ Scans then run at 04:00 and 13:00 UK time (`SCAN_CRON`, `APP_TIMEZONE`).
 ## Identity
 
 There's no login code. Cloudflare Access signs people in and forwards a signed token. The app
-verifies that token and reads the email from it. Everyone who gets past Access can read, vote,
-comment and tag. Comments show the name from the email address.
+verifies that token and reads the email from it. With the Access app on `/login` only, anyone can
+read, and signed-in people can vote, comment and tag. Comments show the name from the email
+address. Admin actions still need an email in `ADMIN_EMAILS`.
 
 Modes, in order: verified token (`CF_ACCESS_TEAM_DOMAIN` + `CF_ACCESS_AUD`), then trusting the
 email header (`TRUST_CF_EMAIL_HEADER=1`, only if the port is unreachable except through the
@@ -81,7 +85,9 @@ web search ──────┘       │                          │ rejected
 4. **Cluster.** Postgres fuzzy title matching finds candidate stories. Claude decides whether
    each item is the same event and whether it adds new facts. New facts become a follow-up post
    with a "New:" line. A rewrite gets folded into the earlier post as another source.
-5. **Story tags.** Once a story reaches `STORY_TAG_THRESHOLD` articles (default 5) it gets its
+5. **Merge pass.** After clustering, Claude looks over the last 72 hours of stories for ones that
+   are really the same event but arrived in different batches, and joins them.
+6. **Story tags.** Once a story reaches `STORY_TAG_THRESHOLD` articles (default 3) it gets its
    own tag, like `openai-hugging-face-breach-aug-2026`. Every post in the story carries it, so
    you can follow it or hide it.
 

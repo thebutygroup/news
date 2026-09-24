@@ -48,6 +48,16 @@ Three containers, defined in `docker-compose.yml`:
 Both `web` and `worker` apply migrations and sync config into the database on startup
 (`app/seed.py`). A lock makes that safe when they start together.
 
+## Who can do what
+
+Anyone can read the feed, the Sources page and the scan log. Voting, commenting, tagging and
+"Not relevant" need you to be signed in. Scanning, following organisations and editing channels
+need your email in `ADMIN_EMAILS`.
+
+Signing in is Cloudflare Access, protecting only the `/login` path. Visiting it signs you in and
+sets Access's cookie for the whole site; the app verifies that token on every request
+(`app/auth.py`). No passwords or sessions are stored by the app.
+
 ## Known sources
 
 This is the part that decides what we can see, so it has its own model.
@@ -166,9 +176,10 @@ the window. Anything found on their own site is attributed to them as a primary 
 | 2. Discover | Claude web search over the topic's queries plus the sweep list. Keeps only URLs that really appeared in search results. | `orgs` | `orgs` (search hits, proposals) | `topics/ai/topic.json`, `app/pipeline/prompts/discovery.md` |
 | 3. Dedup | Normalises URLs. Anything seen before, in any topic, is dropped. When one URL arrives by several routes, the feed copy wins over X, HN or search. | `candidates` | `candidates` | `app/normalize.py` |
 | 4. Curate | Claude keeps or rejects each item against the lens, with the team's recent "Not relevant" flags and upvotes as examples. Writes summaries, scores, tags. | `candidates`, `feedback`, `votes`, `orgs` | `candidates` (decision, reason) | `topics/ai/lens.md`, `topics/ai/taxonomy.json`, `app/pipeline/prompts/curate.md` |
-| 5. Cluster | Fuzzy title match finds candidate stories. Claude decides same story or not, and whether there are new facts. | `stories`, `posts` | `stories`, `posts`, `coverage`, `post_tags` | `app/pipeline/prompts/cluster.md`, `app/pipeline/cluster.py` |
-| 6. Story tags | Stories with `STORY_TAG_THRESHOLD` articles get their own tag. | `stories` | `tags`, `post_tags` | `app/pipeline/cluster.py` |
-| 7. Upkeep | Recount mentions, propose orgs, run channel discovery for a few new orgs. | `post_tags`, `orgs` | `orgs`, `sources` | `app/sources/relevance.py`, `app/sources/channels.py` |
+| 5. Cluster | Fuzzy title match and shared keywords find candidate stories. Claude decides same story or not, and whether there are new facts. | `stories`, `posts` | `stories`, `posts`, `coverage`, `post_tags` | `app/pipeline/prompts/cluster.md`, `app/pipeline/cluster.py` |
+| 6. Merge pass | Claude looks over every story from the last 72 hours for ones that are really the same event, which happens when coverage arrives in different batches or scans. Merged duplicates with no new facts, votes or comments fold into the earlier post as extra sources. | `stories`, `posts` | `stories`, `posts`, `coverage` | `app/pipeline/prompts/merge.md`, `app/pipeline/cluster.py` |
+| 7. Story tags | Stories with `STORY_TAG_THRESHOLD` articles (default 3) get their own tag. | `stories` | `tags`, `post_tags` | `app/pipeline/cluster.py` |
+| 8. Upkeep | Recount mentions, propose orgs, run channel discovery for a few new orgs. | `post_tags`, `orgs` | `orgs`, `sources` | `app/sources/relevance.py`, `app/sources/channels.py` |
 
 Caps keep a scan bounded: `MAX_LLM_CALLS_PER_RUN`, `MAX_SEARCHES_PER_RUN`,
 `MAX_CANDIDATES_PER_RUN`, `X_MAX_READS_PER_RUN`. A run that hits a cap stops cleanly and says so

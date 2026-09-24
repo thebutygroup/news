@@ -38,6 +38,8 @@ class FakeLLM:
             return self._curate(payload)
         if tool_name == "cluster_results":
             return self._cluster(payload)
+        if tool_name == "merge_results":
+            return self._merge(payload)
         raise ValueError(tool_name)
 
     def search_and_report(self, *, model, system, prompt, schema, max_searches):
@@ -105,3 +107,22 @@ class FakeLLM:
                 })
                 assignments.append({"id": item["id"], "story": ref, "new_information": True, "delta": None})
         return {"assignments": assignments, "new_stories": new_stories}
+
+    def _merge(self, payload):
+        stories = payload["stories"]
+        groups, used = [], set()
+        for i, a in enumerate(stories):
+            if a["id"] in used:
+                continue
+            group = [a["id"]]
+            for b in stories[i + 1:]:
+                if b["id"] in used:
+                    continue
+                shared = set(a.get("keywords") or []) & set(b.get("keywords") or [])
+                if jaccard(a["headline"], b["headline"]) >= 0.35 or len(shared) >= 3:
+                    group.append(b["id"])
+                    used.add(b["id"])
+            if len(group) > 1:
+                used.add(a["id"])
+                groups.append(group)
+        return {"groups": groups}

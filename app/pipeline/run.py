@@ -10,7 +10,7 @@ from ..db import SCAN_LOCK, conn
 from ..normalize import canonical_url, utcnow
 from ..sources import relevance
 from ..sources.channels import discover_pending
-from .cluster import cluster_and_post, materialize_story_tags
+from .cluster import cluster_and_post, materialize_story_tags, merge_duplicate_stories
 from .collect import collect_watchlist, discover, lookback_since
 from .curate import curate
 from .llm import BudgetExceeded, get_llm
@@ -113,6 +113,7 @@ def _run(trigger: str) -> dict:
             kept = curate(llm, topic, fresh, tstats)
             cluster_and_post(llm, topic, kept, tstats)
             stats[topic.slug] = tstats
+        merge_duplicate_stories(llm, stats)
         materialize_story_tags(stats)
         _source_upkeep(stats)
     except BudgetExceeded as exc:

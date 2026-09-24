@@ -464,7 +464,7 @@ function commentsPanel(p, countBtn) {
     }, box, h("button", { class: "btn", type: "submit" }, "Post comment"));
     panel.append(form);
   } else {
-    panel.append(h("p", { class: "when" }, "Sign in to comment."));
+    panel.append(h("p", { class: "when" }, h("a", { href: `/login?next=${encodeURIComponent(location.pathname + location.search)}` }, "Sign in"), " to comment."));
   }
   return panel;
 }
@@ -504,8 +504,12 @@ function tagPanel(p, tagsHolder) {
 function renderMe() {
   const el = $("#me");
   el.replaceChildren();
-  el.append(state.me.email ? `${state.me.name}. ` : "Read only. ",
-    h("a", { href: "/sources" }, "Sources"), " ", h("a", { href: "/runs" }, "Scan log"));
+  const back = encodeURIComponent(location.pathname + location.search);
+  el.append(
+    state.me.email ? `${state.me.name}. ` : h("a", { href: `/login?next=${back}` }, "Sign in"),
+    state.me.email ? null : " to vote and comment. ",
+    h("a", { href: "/sources" }, "Sources"), " ", h("a", { href: "/runs" }, "Scan log"),
+    state.me.email ? [" ", h("a", { href: "/logout" }, "Sign out")] : null);
 }
 
 function renderFooter() {

@@ -16,7 +16,7 @@ from pathlib import Path
 
 from ..config import Topic, settings
 from ..db import conn
-from ..normalize import slugify, utcnow
+from ..normalize import slugify, title_tokens, utcnow
 
 log = logging.getLogger("news.cluster")
 PROMPTS = Path(__file__).resolve().parent / "prompts"
@@ -110,10 +110,17 @@ def active_stories(items: list[dict]) -> list[dict]:
             "select id from stories where last_update_at > %s order by last_update_at desc limit 60", (since,)
         ).fetchall()]
         for item in items:
+            # Two ways a story can look like this item: similar headline, or shared keywords
+            # (so "Optus breach" finds a story headlined "Hackers hit Australian telco").
+            words = sorted(title_tokens(f"{item['title']} {item.get('summary') or ''}"))[:40]
             for r in c.execute(
-                """select id from stories where last_update_at > %s and similarity(headline, %s) > 0.15
-                   order by similarity(headline, %s) desc limit 4""",
-                (since, item["title"], item["title"]),
+                """(select id from stories where last_update_at > %(since)s and similarity(headline, %(t)s) > 0.15
+                    order by similarity(headline, %(t)s) desc limit 4)
+                   union
+                   (select id from stories where last_update_at > %(since)s and keywords && %(w)s::text[]
+                    order by cardinality(array(select unnest(keywords) intersect select unnest(%(w)s::text[]))) desc
+                    limit 4)""",
+                {"since": since, "t": item["title"], "w": words},
             ).fetchall():
                 if r["id"] not in ids:
                     ids.append(r["id"])
@@ -288,3 +295,95 @@ def materialize_story_tags(stats: dict) -> None:
             for p in c.execute("select id from posts where story_id = %s", (s["id"],)).fetchall():
                 attach_tag(c, p["id"], tag_id)
             stats["story_tags_created"] = stats.get("story_tags_created", 0) + 1
+
+
+# -- merge pass --------------------------------------------------------------
+MERGE_SCHEMA = {
+    "type": "object",
+    "properties": {"groups": {"type": "array", "items": {"type": "array", "items": {"type": "integer"}}}},
+    "required": ["groups"],
+}
+
+
+def merge_duplicate_stories(llm, stats: dict, hours: int = 72) -> None:
+    """Second look across batches and scans: join stories that are really one event."""
+    with conn() as c:
+        rows = c.execute(
+            """select s.id, s.headline, s.keywords,
+                      coalesce((select json_agg(x.title) from (select title from posts p where p.story_id = s.id
+                                order by p.feed_at limit 3) x), '[]') as titles
+               from stories s where s.last_update_at > now() - make_interval(hours => %s)
+                 and exists (select 1 from posts p where p.story_id = s.id)
+               order by s.last_update_at desc limit 80""",
+            (hours,),
+        ).fetchall()
+    if len(rows) < 2:
+        return
+    result = llm.structured(
+        model=settings.cluster_model,
+        system=(PROMPTS / "merge.md").read_text(),
+        payload={"stories": [{"id": r["id"], "headline": r["headline"], "keywords": r["keywords"],
+                              "post_titles": r["titles"]} for r in rows]},
+        tool_name="merge_results",
+        schema=MERGE_SCHEMA,
+    )
+    available = {r["id"] for r in rows}
+    merged = folded = 0
+    for group in result.get("groups", []):
+        ids = sorted({i for i in group if i in available})
+        if len(ids) < 2:
+            continue
+        available -= set(ids)
+        folded += merge_stories(ids)
+        merged += len(ids) - 1
+    if merged:
+        stats["stories_merged"] = merged
+        stats["posts_folded_by_merge"] = folded
+
+
+def merge_stories(ids: list[int]) -> int:
+    """Fold later stories into the earliest. A duplicate post with no delta, votes or comments
+    becomes "another source" on the lead post; anything else stays as a follow-up in the story.
+    Returns how many posts were folded away."""
+    keeper, others = ids[0], ids[1:]
+    folded = 0
+    with conn() as c:
+        lead = c.execute("select id from posts where story_id = %s order by feed_at limit 1", (keeper,)).fetchone()
+        for sid in others:
+            posts = c.execute(
+                """select p.*, (select count(*) from votes v where v.post_id = p.id)
+                               + (select count(*) from comments m where m.post_id = p.id) as activity
+                   from posts p where p.story_id = %s order by p.feed_at""",
+                (sid,),
+            ).fetchall()
+            for p in posts:
+                if lead and not p["delta"] and p["activity"] == 0:
+                    c.execute("update coverage set post_id = %s, story_id = %s where post_id = %s", (lead["id"], keeper, p["id"]))
+                    c.execute(
+                        """insert into coverage (story_id, post_id, url, canonical_url, title, source_name, published_at)
+                           values (%s, %s, %s, %s, %s, %s, %s) on conflict (canonical_url) do nothing""",
+                        (keeper, lead["id"], p["url"], p["canonical_url"], p["title"], p["source_name"], p["published_at"]),
+                    )
+                    c.execute("update candidates set decision = 'coverage', post_id = null, reason = 'merged into an earlier story' "
+                              "where post_id = %s", (p["id"],))
+                    c.execute("delete from posts where id = %s", (p["id"],))
+                    folded += 1
+                else:
+                    c.execute("update posts set story_id = %s where id = %s", (keeper, p["id"]))
+                    lead = lead or {"id": p["id"]}
+            c.execute("update coverage set story_id = %s where story_id = %s", (keeper, sid))
+            c.execute(
+                """update stories k set article_count = k.article_count + o.article_count,
+                          keywords = array(select distinct unnest(k.keywords || o.keywords)),
+                          last_update_at = greatest(k.last_update_at, o.last_update_at),
+                          story_tag_id = coalesce(k.story_tag_id, o.story_tag_id),
+                          proposed_tag = coalesce(k.proposed_tag, o.proposed_tag)
+                   from stories o where k.id = %s and o.id = %s""",
+                (keeper, sid),
+            )
+            c.execute("delete from stories where id = %s", (sid,))
+        tag = c.execute("select story_tag_id from stories where id = %s", (keeper,)).fetchone()["story_tag_id"]
+        if tag:
+            for p in c.execute("select id from posts where story_id = %s", (keeper,)).fetchall():
+                attach_tag(c, p["id"], tag)
+    return folded

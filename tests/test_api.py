@@ -25,6 +25,15 @@ def test_pages_and_health(client):
     assert client.get("/static/app.js").status_code == 200
 
 
+def test_login_redirects_back_safely(client):
+    r = client.get("/login?next=/sources", follow_redirects=False)
+    assert r.status_code == 303 and r.headers["location"] == "/sources"
+    r = client.get("/login?next=//evil.example", follow_redirects=False)
+    assert r.headers["location"] == "/"
+    r = client.get("/logout", follow_redirects=False)
+    assert r.headers["location"] == "/cdn-cgi/access/logout"
+
+
 def test_me_in_dev_mode(client):
     me = client.get("/api/me").json()
     assert me["email"] == "joe@example.com" and me["admin"] is True

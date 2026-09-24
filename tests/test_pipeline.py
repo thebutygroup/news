@@ -71,3 +71,27 @@ def test_discovery_drops_unseen_urls_and_proposes_sources(db, monkeypatch):
     assert stats["discovery_unverified_dropped"] == 1
     org = one("select status, search_hits, kind from orgs where homepage = 'https://newsletter.example'")
     assert org["status"] == "proposed" and org["search_hits"] == 1 and org["kind"] == "publication"
+
+
+def test_merge_pass_folds_split_stories(db):
+    from app.pipeline.cluster import merge_duplicate_stories
+    from app.pipeline.fake_llm import FakeLLM
+
+    with conn() as c:
+        s1 = c.execute("insert into stories (headline, keywords, article_count) values "
+                       "('Hackers breach Australian telco customer database', '{australian,telco,breach,customers}', 1) returning id").fetchone()["id"]
+        s2 = c.execute("insert into stories (headline, keywords, article_count) values "
+                       "('Telco confirms breach of customer database', '{telco,breach,customers,records}', 1) returning id").fetchone()["id"]
+        for sid, url in ((s1, "https://a.example/breach"), (s2, "https://b.example/breach")):
+            c.execute("insert into posts (story_id, url, canonical_url, title, summary, source_name) values (%s, %s, %s, 't', 's', 'x')",
+                      (sid, url, url))
+    stats = {}
+    merge_duplicate_stories(FakeLLM(), stats)
+    assert stats.get("stories_merged", 0) >= 1
+    assert one("select count(*) as n from stories where id = %s", s2)["n"] == 0
+    assert one("select count(*) as n from coverage where url = 'https://b.example/breach'")["n"] == 1
+    assert one("select article_count from stories where id = %s", s1)["article_count"] == 2
+    with conn() as c:  # leave the shared test database as the API tests expect it
+        c.execute("delete from posts where url in ('https://a.example/breach', 'https://b.example/breach')")
+        c.execute("delete from coverage where url = 'https://b.example/breach'")
+        c.execute("delete from stories where id = %s", (s1,))

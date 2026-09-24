@@ -71,7 +71,7 @@ class Settings:
     x_max_reads_per_run: int = field(default_factory=lambda: _int("X_MAX_READS_PER_RUN", 300))
 
     # Stories
-    story_tag_threshold: int = field(default_factory=lambda: _int("STORY_TAG_THRESHOLD", 5))
+    story_tag_threshold: int = field(default_factory=lambda: _int("STORY_TAG_THRESHOLD", 3))
     story_window_days: int = field(default_factory=lambda: _int("STORY_WINDOW_DAYS", 21))
 
     # Identity (Cloudflare Access)

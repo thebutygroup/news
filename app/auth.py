@@ -5,6 +5,11 @@ forwards a signed JWT in the Cf-Access-Jwt-Assertion header. We verify that JWT 
 the email from it. At Bauer, swap Cloudflare for whatever SSO proxy sits in front and change
 only this file.
 
+Public reading, signed-in writing: put the Access application on the /login path only. Anyone can
+read the site. Visiting /login makes Access sign you in and set its CF_Authorization cookie for the
+whole hostname, and every later request carries that cookie, so votes, comments and tags know who
+you are. The token is verified here either way, from the header or the cookie.
+
 Modes, in priority order:
   1. CF_ACCESS_TEAM_DOMAIN + CF_ACCESS_AUD set: verify the JWT (recommended).
   2. TRUST_CF_EMAIL_HEADER=1: trust Cf-Access-Authenticated-User-Email as-is. Only safe when

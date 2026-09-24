@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 from urllib.parse import urlsplit
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Request
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
@@ -82,6 +82,19 @@ def index():
 @app.get("/runs", include_in_schema=False)
 def runs_page():
     return FileResponse(settings.static_dir / "runs.html")
+
+
+@app.get("/login", include_in_schema=False)
+def login(next: str = "/"):
+    """Cloudflare Access protects only this path. Reaching it means you signed in; Access has now set
+    its cookie for the whole site, so send you back to where you were."""
+    safe = next if next.startswith("/") and not next.startswith("//") else "/"
+    return RedirectResponse(safe, status_code=303)
+
+
+@app.get("/logout", include_in_schema=False)
+def logout():
+    return RedirectResponse("/cdn-cgi/access/logout", status_code=303)
 
 
 @app.get("/sources", include_in_schema=False)

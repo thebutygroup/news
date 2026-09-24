@@ -205,6 +205,8 @@ async function render() {
 
 async function init() {
   [me, meta] = await Promise.all([api("/api/me").catch(() => ({})), api("/api/meta").catch(() => ({}))]);
+  document.getElementById("me").append(" ",
+    me.email ? h("a", { href: "/logout" }, "Sign out") : h("a", { href: "/login?next=/sources" }, "Sign in"));
   try { await render(); } catch (err) { root.replaceChildren(h("p", { class: "notice" }, `Couldn't load sources. ${err.message}`)); }
 }
 
