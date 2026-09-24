@@ -17,6 +17,7 @@ from pathlib import Path
 from ..config import Topic, settings
 from ..db import conn
 from ..normalize import slugify, title_tokens, utcnow
+from ..places import place_tag
 
 log = logging.getLogger("news.cluster")
 PROMPTS = Path(__file__).resolve().parent / "prompts"
@@ -91,6 +92,15 @@ def tag_post(c, post_id: int, topic: Topic, item: dict, story_tag_id: int | None
             attach_tag(c, post_id, org_tag)
         elif slug:
             attach_tag(c, post_id, ensure_tag(c, slug, name, "entity"))
+    for name in item.get("places", []):
+        place = place_tag(name)
+        if place:
+            attach_tag(c, post_id, ensure_tag(c, place[0], place[1], "place"))
+    for raw in item.get("extra_tags", []):
+        slug = slugify(raw, 40)
+        if len(slug) < 3:
+            continue
+        attach_tag(c, post_id, ensure_tag(c, slug, slug.replace("-", " "), "subject"))  # reuses the tag if it exists
     if item.get("org_id"):
         row = c.execute("select tag_id from orgs where id = %s", (item["org_id"],)).fetchone()
         if row and row["tag_id"]:

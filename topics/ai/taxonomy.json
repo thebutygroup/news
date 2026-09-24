@@ -1,24 +1,279 @@
 [
-  {"slug": "model-release", "label": "Model release", "description": "A new model, model version or open-weights release is available or officially announced with a date."},
-  {"slug": "research", "label": "Research", "description": "Papers, benchmarks and technical results. Not product launches."},
-  {"slug": "open-source", "label": "Open source", "description": "Open-weights models, open-source libraries and frameworks, and the licences around them."},
-  {"slug": "tools", "label": "Tools", "description": "Developer tools, SDKs, frameworks, APIs and platform features engineers would use."},
-  {"slug": "agents", "label": "Agents", "description": "Agentic systems, tool use, MCP, computer use, autonomous workflows."},
-  {"slug": "enterprise-adoption", "label": "Enterprise adoption", "description": "How a named company is actually using AI in production, with specifics."},
-  {"slug": "frontier-use", "label": "Frontier use", "description": "New, creative or surprising ways people are using AI, including personal stories that are spreading."},
-  {"slug": "creators", "label": "Creators", "description": "A newsletter, podcast, YouTube channel, researcher or builder gaining traction."},
-  {"slug": "legislation", "label": "Legislation", "description": "Actual legislative or regulatory acts only: bills introduced or passed, laws or rules in force, official guidance or codes, enforcement actions. Not commentary."},
-  {"slug": "policy", "label": "Policy", "description": "Debate, speeches, consultations and politics about AI regulation, without a legal act."},
-  {"slug": "security", "label": "Security", "description": "Hacks, breaches, leaks, vulnerabilities, jailbreaks and attacks involving AI systems or AI companies."},
-  {"slug": "safety", "label": "Safety", "description": "Alignment, evaluations, model behaviour, misuse and red-teaming."},
-  {"slug": "funding", "label": "Funding", "description": "Fundraises, valuations, acquisitions, IPOs and big commercial deals."},
-  {"slug": "infrastructure", "label": "Infrastructure", "description": "Chips, compute, data centres, energy and inference economics."},
-  {"slug": "advertising", "label": "Advertising", "description": "AI in adtech, out-of-home, audience measurement, targeting and attribution."},
-  {"slug": "media-and-publishing", "label": "Media and publishing", "description": "Copyright cases, licensing deals, AI in newsrooms and creative production."},
-  {"slug": "computer-vision", "label": "Computer vision", "description": "Vision models, video understanding, geospatial and real-world scene analysis."},
-  {"slug": "audio-and-voice", "label": "Audio and voice", "description": "Speech, voice cloning, music and audio models."},
-  {"slug": "us-federal", "label": "US federal", "description": "Jurisdiction: United States federal government, agencies and Congress."},
-  {"slug": "eu", "label": "EU", "description": "Jurisdiction: European Union institutions, including the AI Act and the AI Office."},
-  {"slug": "germany", "label": "Germany", "description": "Jurisdiction: German federal government and regulators."},
-  {"slug": "uk", "label": "UK", "description": "Jurisdiction: UK Parliament, government and regulators such as the ICO, Ofcom and the CMA."}
+ {
+  "slug": "model-release",
+  "label": "Model release",
+  "description": "A new model, model version or open-weights release is available or officially announced with a date.",
+  "aliases": [
+   "launch",
+   "new model",
+   "release",
+   "weights",
+   "llm release"
+  ]
+ },
+ {
+  "slug": "research",
+  "label": "Research",
+  "description": "Papers, benchmarks and technical results. Not product launches.",
+  "aliases": [
+   "paper",
+   "papers",
+   "benchmark",
+   "study",
+   "arxiv"
+  ]
+ },
+ {
+  "slug": "open-source",
+  "label": "Open source",
+  "description": "Open-weights models, open-source libraries and frameworks, and the licences around them.",
+  "aliases": [
+   "open weights",
+   "oss",
+   "open model"
+  ]
+ },
+ {
+  "slug": "tools",
+  "label": "Tools",
+  "description": "Developer tools, SDKs, frameworks, APIs and platform features engineers would use.",
+  "aliases": [
+   "sdk",
+   "framework",
+   "api",
+   "developer tools",
+   "devtools",
+   "library"
+  ]
+ },
+ {
+  "slug": "agents",
+  "label": "Agents",
+  "description": "Agentic systems, tool use, MCP, computer use, autonomous workflows.",
+  "aliases": [
+   "agent",
+   "agentic",
+   "mcp",
+   "computer use",
+   "tool use"
+  ]
+ },
+ {
+  "slug": "enterprise-adoption",
+  "label": "Enterprise adoption",
+  "description": "How a named company is actually using AI in production, with specifics.",
+  "aliases": [
+   "case study",
+   "deployment",
+   "rollout",
+   "in production",
+   "adoption"
+  ]
+ },
+ {
+  "slug": "frontier-use",
+  "label": "Frontier use",
+  "description": "New, creative or surprising ways people are using AI, including personal stories that are spreading.",
+  "aliases": [
+   "use case",
+   "novel use",
+   "personal story",
+   "viral"
+  ]
+ },
+ {
+  "slug": "creators",
+  "label": "Creators",
+  "description": "A newsletter, podcast, YouTube channel, researcher or builder gaining traction.",
+  "aliases": [
+   "newsletter",
+   "podcast",
+   "youtube",
+   "substack",
+   "influencer"
+  ]
+ },
+ {
+  "slug": "legislation",
+  "label": "Legislation",
+  "description": "Actual legislative or regulatory acts only: bills introduced or passed, laws or rules in force, official guidance or codes, enforcement actions. Not commentary.",
+  "aliases": [
+   "law",
+   "regulation",
+   "act",
+   "bill",
+   "rules",
+   "ai act",
+   "compliance"
+  ]
+ },
+ {
+  "slug": "policy",
+  "label": "Policy",
+  "description": "Debate, speeches, consultations and politics about AI regulation, without a legal act.",
+  "aliases": [
+   "politics",
+   "government",
+   "consultation",
+   "debate"
+  ]
+ },
+ {
+  "slug": "security",
+  "label": "Security",
+  "description": "Hacks, breaches, leaks, vulnerabilities, jailbreaks and attacks involving AI systems or AI companies.",
+  "aliases": [
+   "hack",
+   "hacked",
+   "breach",
+   "data breach",
+   "leak",
+   "vulnerability",
+   "exploit",
+   "cyberattack",
+   "jailbreak",
+   "cve",
+   "malware",
+   "incident"
+  ]
+ },
+ {
+  "slug": "safety",
+  "label": "Safety",
+  "description": "Alignment, evaluations, model behaviour, misuse and red-teaming.",
+  "aliases": [
+   "alignment",
+   "evals",
+   "red teaming",
+   "misuse",
+   "guardrails"
+  ]
+ },
+ {
+  "slug": "funding",
+  "label": "Funding",
+  "description": "Fundraises, valuations, acquisitions, IPOs and big commercial deals.",
+  "aliases": [
+   "raise",
+   "investment",
+   "valuation",
+   "acquisition",
+   "ipo",
+   "deal",
+   "m&a"
+  ]
+ },
+ {
+  "slug": "infrastructure",
+  "label": "Infrastructure",
+  "description": "Chips, compute, data centres, energy and inference economics.",
+  "aliases": [
+   "chips",
+   "gpu",
+   "compute",
+   "data center",
+   "datacenter",
+   "energy",
+   "inference cost"
+  ]
+ },
+ {
+  "slug": "advertising",
+  "label": "Advertising",
+  "description": "AI in adtech, out-of-home, audience measurement, targeting and attribution.",
+  "aliases": [
+   "ads",
+   "adtech",
+   "ooh",
+   "dooh",
+   "out of home",
+   "billboard",
+   "measurement",
+   "attribution",
+   "targeting"
+  ]
+ },
+ {
+  "slug": "media-and-publishing",
+  "label": "Media and publishing",
+  "description": "Copyright cases, licensing deals, AI in newsrooms and creative production.",
+  "aliases": [
+   "copyright",
+   "publishers",
+   "licensing",
+   "newsroom",
+   "journalism"
+  ]
+ },
+ {
+  "slug": "computer-vision",
+  "label": "Computer vision",
+  "description": "Vision models, video understanding, geospatial and real-world scene analysis.",
+  "aliases": [
+   "vision",
+   "cv",
+   "video",
+   "image",
+   "geospatial",
+   "camera"
+  ]
+ },
+ {
+  "slug": "audio-and-voice",
+  "label": "Audio and voice",
+  "description": "Speech, voice cloning, music and audio models.",
+  "aliases": [
+   "speech",
+   "voice",
+   "tts",
+   "voice cloning",
+   "music",
+   "audio"
+  ]
+ },
+ {
+  "slug": "us-federal",
+  "label": "US federal",
+  "description": "Jurisdiction: United States federal government, agencies and Congress.",
+  "aliases": [
+   "federal",
+   "congress",
+   "white house",
+   "ftc",
+   "nist"
+  ]
+ },
+ {
+  "slug": "eu",
+  "label": "EU",
+  "description": "Jurisdiction: European Union institutions, including the AI Act and the AI Office.",
+  "aliases": [
+   "europe",
+   "european union",
+   "brussels",
+   "ai office"
+  ]
+ },
+ {
+  "slug": "germany",
+  "label": "Germany",
+  "description": "Jurisdiction: German federal government and regulators.",
+  "aliases": [
+   "german",
+   "deutschland"
+  ]
+ },
+ {
+  "slug": "uk",
+  "label": "UK",
+  "description": "Jurisdiction: UK Parliament, government and regulators such as the ICO, Ofcom and the CMA.",
+  "aliases": [
+   "britain",
+   "united kingdom",
+   "ico",
+   "ofcom",
+   "cma",
+   "dsit"
+  ]
+ }
 ]

@@ -193,7 +193,8 @@ const search = {
       } else {
         li.append(...kids(
           h("span", {}, opt.negate ? "Hide " : "", h("strong", {}, `#${opt.tag.slug}`)),
-          opt.tag.label.toLowerCase() !== opt.tag.slug.replace(/-/g, " ") ? h("span", { class: "hint" }, opt.tag.label) : null,
+          opt.tag.matched ? h("span", { class: "hint" }, `matches “${opt.tag.matched}”`)
+            : opt.tag.label.toLowerCase() !== opt.tag.slug.replace(/-/g, " ") ? h("span", { class: "hint" }, opt.tag.label) : null,
           h("span", { class: "kind" }, `${opt.tag.type}, ${opt.tag.uses} ${opt.tag.uses === 1 ? "post" : "posts"}`),
           opt.negate ? null : h("button", {
             class: "not", title: `Hide posts tagged #${opt.tag.slug}`,
@@ -345,8 +346,7 @@ function renderPost(p) {
     p.importance >= 4 ? h("span", { class: "badge" }, "Big") : null);
 
   const voteBtn = h("button", {
-    class: "act vote", "aria-pressed": String(p.voted), disabled: !canWrite,
-    title: canWrite ? "Upvote" : "Sign in to vote",
+    class: "act vote", "aria-pressed": String(p.voted), title: "Upvote",
     onClick: async () => {
       try {
         const r = await api(`/api/posts/${p.id}/vote`, { method: "POST" });
@@ -369,14 +369,15 @@ function renderPost(p) {
 
   const tagsHolder = h("div", {}, renderTags(p));
   const tagBtn = h("button", {
-    class: "act", disabled: !canWrite, title: canWrite ? "Add a tag" : "Sign in to add tags",
-    onClick: () => toggle("tag", () => tagPanel(p, tagsHolder)),
+    class: "act", title: canWrite ? "Add a tag" : "Sign in to add tags",
+    onClick: () => (canWrite ? toggle("tag", () => tagPanel(p, tagsHolder)) : goSignIn()),
   }, "Add tag");
 
   const flagBtn = h("button", {
-    class: "act flag", "aria-pressed": String(p.flagged), disabled: !canWrite,
-    title: "Tell the curator this didn't belong here",
+    class: "act flag", "aria-pressed": String(p.flagged),
+    title: canWrite ? "Tell the curator this didn't belong here" : "Sign in to flag posts",
     onClick: async () => {
+      if (!canWrite) return goSignIn();
       try {
         const r = await api(`/api/posts/${p.id}/not-relevant`, { method: "POST" });
         p.flagged = r.flagged;
@@ -464,7 +465,7 @@ function commentsPanel(p, countBtn) {
     }, box, h("button", { class: "btn", type: "submit" }, "Post comment"));
     panel.append(form);
   } else {
-    panel.append(h("p", { class: "when" }, h("a", { href: `/login?next=${encodeURIComponent(location.pathname + location.search)}` }, "Sign in"), " to comment."));
+    panel.append(h("p", {}, h("a", { class: "btn", href: loginUrl() }, "Sign in to comment")));
   }
   return panel;
 }
@@ -501,15 +502,18 @@ function tagPanel(p, tagsHolder) {
 }
 
 // ---- header and footer -------------------------------------------------
+function loginUrl() {
+  return `/login?next=${encodeURIComponent(location.pathname + location.search)}`;
+}
+function goSignIn() { location.href = loginUrl(); }
+
 function renderMe() {
   const el = $("#me");
   el.replaceChildren();
-  const back = encodeURIComponent(location.pathname + location.search);
-  el.append(
-    state.me.email ? `${state.me.name}. ` : h("a", { href: `/login?next=${back}` }, "Sign in"),
-    state.me.email ? null : " to vote and comment. ",
-    h("a", { href: "/sources" }, "Sources"), " ", h("a", { href: "/runs" }, "Scan log"),
-    state.me.email ? [" ", h("a", { href: "/logout" }, "Sign out")] : null);
+  el.append(...kids(
+    state.me.email ? `${state.me.name}. ` : "Read only. ",
+    h("a", { href: "/sources" }, "Sources"), " ", h("a", { href: "/runs" }, "Scan log"), " ",
+    state.me.email ? h("a", { href: "/logout" }, "Sign out") : h("a", { class: "btn", href: loginUrl() }, "Sign in")));
 }
 
 function renderFooter() {

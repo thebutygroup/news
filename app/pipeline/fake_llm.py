@@ -8,6 +8,7 @@ from __future__ import annotations
 import re
 
 from ..normalize import domain, jaccard, slugify
+from ..places import all_place_names
 
 AI_WORDS = re.compile(
     r"\b(ai|a\.i\.|llm|llms|gpt|claude|gemini|llama|mistral|openai|anthropic|deepmind|hugging ?face|"
@@ -49,6 +50,8 @@ class FakeLLM:
     # -- heuristics --------------------------------------------------------
     def _curate(self, payload):
         allowed = {t["slug"] for t in payload["taxonomy"]}
+        orgs = payload.get("known_organisations", [])
+        places = all_place_names()
         results = []
         for item in payload["items"]:
             text = f"{item['title']} {item.get('excerpt') or ''}"
@@ -70,8 +73,10 @@ class FakeLLM:
                 "lens_score": 2 if "advertising" in cats or "media-and-publishing" in cats else 0,
                 "summary": (item.get("excerpt") or item["title"])[:280],
                 "content_type": ctype,
-                "categories": cats[:3],
-                "entities": [],
+                "categories": cats[:4],
+                "entities": [o for o in orgs if re.search(rf"\b{re.escape(o)}\b", text, re.I)][:5],
+                "places": sorted({slug for n, slug in places if re.search(rf"\b{re.escape(n)}\b", text, re.I)})[:3],
+                "extra_tags": ["data-breach"] if re.search(r"\b(breach|stole|stolen|leak)", text, re.I) else [],
                 "legislation_stage": "proposed" if "legislation" in cats else None,
                 "jurisdiction": None,
             })

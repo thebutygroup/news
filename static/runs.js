@@ -117,7 +117,7 @@ async function init() {
   me = await api("/api/me").catch(() => ({}));
   const meEl = document.getElementById("me");
   meEl.append(h("a", { href: "/" }, "Feed"), " ", h("a", { href: "/sources" }, "Sources"), " ",
-    me.email ? h("a", { href: "/logout" }, "Sign out") : h("a", { href: "/login?next=/runs" }, "Sign in"));
+    me.email ? h("a", { href: "/logout" }, "Sign out") : h("a", { class: "btn", href: "/login?next=/runs" }, "Sign in"));
   if (me.admin) {
     meEl.append(h("button", { class: "btn", onClick: async (e) => {
       try { await api("/api/scan", { method: "POST" }); e.target.textContent = "Scan queued"; e.target.disabled = true; }

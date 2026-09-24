@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import hashlib
 import logging
+import re
+import secrets
 from contextlib import asynccontextmanager
 from urllib.parse import urlsplit
 
-from fastapi import Depends, FastAPI, HTTPException, Query, Request
-from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
+from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
@@ -50,8 +53,36 @@ async def same_origin_writes(request: Request, call_next):
     return await call_next(request)
 
 
+@app.middleware("http")
+async def cache_headers(request: Request, call_next):
+    """Pages and scripts are revalidated on every visit, so a deploy shows up straight away,
+    including through Cloudflare's cache. Fonts never change, so they're cached for a year."""
+    response = await call_next(request)
+    path = request.url.path
+    if path.startswith("/static/fonts/"):
+        response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+    elif path.startswith("/static/") or not path.startswith("/api/"):
+        response.headers.setdefault("Cache-Control", "no-cache")
+    return response
+
+
 def user(request: Request) -> str | None:
     return current_user(request)
+
+
+VOTER_COOKIE = "news_voter"
+
+
+def voter(request: Request) -> tuple[str | None, str | None]:
+    """Who is voting: the signed-in email, or an anonymous id kept in a cookie so a guest's vote
+    can be undone. Returns (voter id, new cookie value if one needs setting)."""
+    email = current_user(request)
+    if email:
+        return email, None
+    token = request.cookies.get(VOTER_COOKIE, "")
+    if re.fullmatch(r"[A-Za-z0-9_-]{16,64}", token):
+        return f"guest:{token}", None
+    return None, secrets.token_urlsafe(18)
 
 
 def require_user(request: Request) -> str:
@@ -74,14 +105,33 @@ def _post_exists(c, post_id: int) -> None:
 
 
 # -- pages -----------------------------------------------------------------
+def _static_version() -> str:
+    digest = hashlib.sha1()
+    for path in sorted(settings.static_dir.glob("*")):
+        if path.suffix in (".js", ".css"):
+            digest.update(path.read_bytes())
+    return digest.hexdigest()[:10]
+
+
+STATIC_VERSION = _static_version()
+
+
+def page(name: str) -> HTMLResponse:
+    """Serve a page with ?v=<hash of the scripts> on its script and style links, so browsers and
+    Cloudflare fetch new code after every deploy instead of running a cached copy."""
+    html = (settings.static_dir / name).read_text()
+    html = html.replace('.js"', f'.js?v={STATIC_VERSION}"').replace('.css"', f'.css?v={STATIC_VERSION}"')
+    return HTMLResponse(html)
+
+
 @app.get("/", include_in_schema=False)
 def index():
-    return FileResponse(settings.static_dir / "index.html")
+    return page("index.html")
 
 
 @app.get("/runs", include_in_schema=False)
 def runs_page():
-    return FileResponse(settings.static_dir / "runs.html")
+    return page("runs.html")
 
 
 @app.get("/login", include_in_schema=False)
@@ -99,7 +149,7 @@ def logout():
 
 @app.get("/sources", include_in_schema=False)
 def sources_page():
-    return FileResponse(settings.static_dir / "sources.html")
+    return page("sources.html")
 
 
 app.mount("/static", StaticFiles(directory=settings.static_dir), name="static")
@@ -120,10 +170,11 @@ def me(email: str | None = Depends(user)):
 
 
 @app.get("/api/feed")
-def get_feed(email: str | None = Depends(user), t: list[str] = Query(default=[]), q: str | None = None,
+def get_feed(request: Request, t: list[str] = Query(default=[]), q: str | None = None,
              sort: str | None = None, before: str | None = None, limit: int = 120):
     cursor = parse_iso(before) if before else None
-    return queries.feed(email, t, q, sort, cursor, limit)
+    who, _ = voter(request)  # guests see their own upvotes highlighted too
+    return queries.feed(who, t, q, sort, cursor, limit)
 
 
 @app.get("/api/tags")
@@ -181,12 +232,20 @@ def get_comments(post_id: int):
 
 # -- write -----------------------------------------------------------------
 @app.post("/api/posts/{post_id}/vote")
-def toggle_vote(post_id: int, email: str = Depends(require_user)):
+def toggle_vote(post_id: int, request: Request, response: Response):
+    """Anyone can upvote. Signed-in votes count as you; guests get an anonymous cookie so they can
+    take a vote back. Clearing cookies lets a guest vote again, which is fine for a small team feed."""
+    who, new_token = voter(request)
+    if new_token:
+        who = f"guest:{new_token}"
+        response.set_cookie(VOTER_COOKIE, new_token, max_age=365 * 24 * 3600, httponly=True,
+                            secure=request.url.scheme == "https" or request.headers.get("x-forwarded-proto") == "https",
+                            samesite="lax")
     with conn() as c:
         _post_exists(c, post_id)
-        removed = c.execute("delete from votes where post_id = %s and user_email = %s returning 1", (post_id, email)).fetchone()
+        removed = c.execute("delete from votes where post_id = %s and user_email = %s returning 1", (post_id, who)).fetchone()
         if not removed:
-            c.execute("insert into votes (post_id, user_email) values (%s, %s)", (post_id, email))
+            c.execute("insert into votes (post_id, user_email) values (%s, %s)", (post_id, who))
         count = c.execute("select count(*) as n from votes where post_id = %s", (post_id,)).fetchone()["n"]
     return {"voted": not removed, "votes": count}
 

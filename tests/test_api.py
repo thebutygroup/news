@@ -110,3 +110,22 @@ def test_orgs_api(client):
     assert client.post(f"/api/orgs/{new['id']}/priority?value=watch").json() == {"priority": "watch"}
     proposed = client.get("/api/orgs?status=proposed").json()
     assert isinstance(proposed, list)
+
+
+def test_guests_can_upvote(client, monkeypatch):
+    from app.config import settings
+
+    monkeypatch.setattr(settings, "dev_user_email", None)  # nobody signed in
+    pid = feed(client)["posts"][0]["id"]
+    r = client.post(f"/api/posts/{pid}/vote")
+    assert r.json()["voted"] is True and "news_voter" in r.cookies
+    token = r.cookies["news_voter"]
+    assert client.post(f"/api/posts/{pid}/vote", cookies={"news_voter": token}).json()["voted"] is False
+    assert client.post(f"/api/posts/{pid}/comments", json={"body": "hi"}).status_code == 401
+
+
+def test_pages_carry_a_version_so_deploys_show_up(client):
+    html = client.get("/").text
+    assert "/static/app.js?v=" in html and "/static/styles.css?v=" in html
+    assert client.get("/").headers["cache-control"] == "no-cache"
+    assert "immutable" in client.get("/static/fonts/big-shoulders-latin-800-normal.woff2").headers["cache-control"]

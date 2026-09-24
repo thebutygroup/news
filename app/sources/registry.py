@@ -28,6 +28,7 @@ def seed_registry(c, ensure_tag) -> int:
     for o in load_registry():
         slug = o.get("slug") or slugify(o["name"])
         tag_id = ensure_tag(c, slug, o["name"], "entity")
+        c.execute("update tags set aliases = %s where id = %s", ([a.lower() for a in o.get("aliases", [])], tag_id))
         aliases = [slugify(a) for a in o.get("aliases", []) if slugify(a) and slugify(a) != slug]
         priority = o.get("priority", "core")
         org_id = c.execute(

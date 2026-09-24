@@ -26,8 +26,8 @@ def seed() -> None:
                 ensure_tag(c, lt["slug"], lt["label"], "lens", description=lt.get("description"))
             for t in topic.taxonomy:
                 tid = ensure_tag(c, t["slug"], t.get("label", t["slug"]), "category", description=t.get("description"))
-                c.execute("update tags set description = %s, label = %s where id = %s and created_by = 'system'",
-                          (t.get("description"), t.get("label", t["slug"]), tid))
+                c.execute("update tags set description = %s, label = %s, aliases = %s where id = %s and created_by = 'system'",
+                          (t.get("description"), t.get("label", t["slug"]), [a.lower() for a in t.get("aliases", [])], tid))
             for s in topic.sources:
                 kind = s.get("kind")
                 if kind == "hn":

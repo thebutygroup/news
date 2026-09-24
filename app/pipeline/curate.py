@@ -34,6 +34,8 @@ SCHEMA = {
                     "content_type": {"type": "string", "enum": CONTENT_TYPES},
                     "categories": {"type": "array", "items": {"type": "string"}},
                     "entities": {"type": "array", "items": {"type": "string"}},
+                    "places": {"type": "array", "items": {"type": "string"}},
+                    "extra_tags": {"type": "array", "items": {"type": "string"}},
                     "legislation_stage": {"type": ["string", "null"], "enum": STAGES + [None]},
                     "jurisdiction": {"type": ["string", "null"]},
                 },
@@ -72,6 +74,18 @@ def _org_context(candidates: list[dict]) -> tuple[dict, list[str]]:
     return {r["id"]: r for r in rows}, names
 
 
+def existing_tags(limit: int = 150) -> list[str]:
+    """The tags already in use, so the curator reuses them instead of inventing near-duplicates."""
+    with conn() as c:
+        rows = c.execute(
+            """select t.slug from tags t left join post_tags pt on pt.tag_id = t.id
+               where t.type in ('subject', 'place', 'entity', 'user') group by t.id
+               order by count(pt.post_id) desc, t.slug limit %s""",
+            (limit,),
+        ).fetchall()
+    return [r["slug"] for r in rows]
+
+
 def curate(llm, topic: Topic, candidates: list[dict], stats: dict) -> list[dict]:
     """Returns kept candidates, each enriched with the curator's description."""
     if not candidates:
@@ -93,6 +107,7 @@ def curate(llm, topic: Topic, candidates: list[dict], stats: dict) -> list[dict]
             "taxonomy": taxonomy,
             "team_feedback": feedback,
             "known_organisations": known_names,
+            "existing_tags": existing_tags(),
             "items": [
                 {
                     "id": c["id"],
@@ -125,7 +140,7 @@ def curate(llm, topic: Topic, candidates: list[dict], stats: dict) -> list[dict]
                               ((r.get("reason") or "rejected")[:300], cand["id"]))
                     stats["rejected"] = stats.get("rejected", 0) + 1
                     continue
-                cats = [s for s in (r.get("categories") or []) if s in allowed][:3]
+                cats = [s for s in (r.get("categories") or []) if s in allowed][:4]
                 enriched = {
                     **cand,
                     "summary": (r.get("summary") or cand["excerpt"] or cand["title"]).strip()[:600],
@@ -133,7 +148,9 @@ def curate(llm, topic: Topic, candidates: list[dict], stats: dict) -> list[dict]
                     "lens_score": max(0, min(3, int(r.get("lens_score") or 0))),
                     "content_type": r.get("content_type") if r.get("content_type") in CONTENT_TYPES else "article",
                     "categories": cats,
-                    "entities": [e.strip() for e in (r.get("entities") or []) if e and e.strip()][:3],
+                    "entities": [e.strip() for e in (r.get("entities") or []) if e and e.strip()][:5],
+                    "places": [p.strip() for p in (r.get("places") or []) if p and p.strip()][:3],
+                    "extra_tags": [t.strip() for t in (r.get("extra_tags") or []) if t and t.strip()][:3],
                     "legislation_stage": r.get("legislation_stage") if "legislation" in cats else None,
                     "jurisdiction": r.get("jurisdiction") if "legislation" in cats and r.get("jurisdiction") in allowed else None,
                 }

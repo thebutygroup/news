@@ -107,21 +107,26 @@ def feed(me: str | None, tag_values: list[str], q: str | None, sort: str | None,
 
 
 def suggest_tags(prefix: str, limit: int = 12) -> list[dict]:
-    prefix = (prefix or "").strip().lower().lstrip("-+")
+    """Tags whose slug, label or aliases start with (or look like) what was typed.
+    'matched' says which alias matched, so the UI can show "#security, matches hack"."""
+    prefix = (prefix or "").strip().lower().lstrip("-+#")
     with conn() as c:
         if not prefix:
             return c.execute(
-                """select t.slug, t.label, t.type, count(pt.post_id) as uses from tags t
+                """select t.slug, t.label, t.type, count(pt.post_id) as uses, null as matched from tags t
                    left join post_tags pt on pt.tag_id = t.id group by t.id
                    order by uses desc, t.slug limit %s""",
                 (limit,),
             ).fetchall()
         return c.execute(
-            """select t.slug, t.label, t.type, count(pt.post_id) as uses from tags t
-               left join post_tags pt on pt.tag_id = t.id
-               where t.slug like %(p)s || '%%' or t.label ilike '%%' || %(p)s || '%%' or similarity(t.slug, %(p)s) > 0.35
+            """select t.slug, t.label, t.type, count(pt.post_id) as uses,
+                      (select a from unnest(t.aliases) a where a like %(p)s || '%%' order by length(a) limit 1) as matched
+               from tags t left join post_tags pt on pt.tag_id = t.id
+               where t.slug like %(p)s || '%%' or t.label ilike '%%' || %(p)s || '%%'
+                  or exists (select 1 from unnest(t.aliases) a where a like %(p)s || '%%')
+                  or similarity(t.slug, %(p)s) > 0.35
                group by t.id
-               order by (t.slug like %(p)s || '%%') desc, uses desc, t.slug
+               order by (t.slug like %(p)s || '%%') desc, count(pt.post_id) desc, t.slug
                limit %(limit)s""",
             {"p": prefix, "limit": limit},
         ).fetchall()

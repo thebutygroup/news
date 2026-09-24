@@ -87,7 +87,7 @@ web search ──────┘       │                          │ rejected
    with a "New:" line. A rewrite gets folded into the earlier post as another source.
 5. **Merge pass.** After clustering, Claude looks over the last 72 hours of stories for ones that
    are really the same event but arrived in different batches, and joins them.
-6. **Story tags.** Once a story reaches `STORY_TAG_THRESHOLD` articles (default 3) it gets its
+6. **Story tags.** Once a story reaches `STORY_TAG_THRESHOLD` articles (default 2) it gets its
    own tag, like `openai-hugging-face-breach-aug-2026`. Every post in the story carries it, so
    you can follow it or hide it.
 

@@ -12,7 +12,7 @@ import pytest
 ROOT = Path(__file__).resolve().parent.parent
 TEST_DB = os.getenv("TEST_DATABASE_URL")
 if not TEST_DB:
-    collect_ignore = ["test_pipeline.py", "test_api.py", "test_sources.py"]  # database tests need TEST_DATABASE_URL
+    collect_ignore = ["test_pipeline.py", "test_api.py", "test_sources.py", "test_tagging.py"]  # database tests need TEST_DATABASE_URL
 
 WORK = Path(os.getenv("TEST_WORKDIR", "/tmp/news-tests"))
 os.environ.update({
@@ -90,5 +90,5 @@ def db(workdir):
 
 def pytest_collection_modifyitems(items):
     """The pipeline tests build the data the API tests read, so run them first."""
-    order = {"test_normalize.py": 0, "test_llm.py": 0, "test_pipeline.py": 1, "test_api.py": 2, "test_sources.py": 3}
+    order = {"test_normalize.py": 0, "test_llm.py": 0, "test_pipeline.py": 1, "test_api.py": 2, "test_sources.py": 3, "test_tagging.py": 4}
     items.sort(key=lambda i: order.get(i.fspath.basename, 9))

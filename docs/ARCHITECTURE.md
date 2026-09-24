@@ -50,8 +50,9 @@ Both `web` and `worker` apply migrations and sync config into the database on st
 
 ## Who can do what
 
-Anyone can read the feed, the Sources page and the scan log. Voting, commenting, tagging and
-"Not relevant" need you to be signed in. Scanning, following organisations and editing channels
+Anyone can read the feed, the Sources page and the scan log, and anyone can upvote. Guests'
+upvotes are tied to an anonymous cookie so they can be taken back. Commenting, tagging and
+"Not relevant" need you to be signed in; for a guest, those buttons go to the sign-in page. Scanning, following organisations and editing channels
 need your email in `ADMIN_EMAILS`.
 
 Signing in is Cloudflare Access, protecting only the `/login` path. Visiting it signs you in and
@@ -166,6 +167,26 @@ are handed to web search, `ORG_SWEEP_PER_RUN` at a time (default 8), core priori
 least recently checked. The discovery prompt asks for any official announcement from them in
 the window. Anything found on their own site is attributed to them as a primary source.
 
+## Tags
+
+Every kept item is tagged fully the first time it's posted. For "OpenAI confirms hackers stole
+Australian customers' data" that's `ai`, `security`, `openai`, `australia` and `data-breach`.
+
+| Type | What it is | Where it comes from |
+|---|---|---|
+| `topic` | The feed it belongs to, e.g. `ai` | Topic folder |
+| `category` | A taxonomy slot, e.g. `security`, `legislation`, `uk` | `topics/ai/taxonomy.json`; the curator picks one to four |
+| `entity` | An organisation, model, product or person central to the item | The curator names up to five. Names of followed orgs, and their aliases, resolve to the org's tag. |
+| `place` | A country, region or city that matters to the story | The curator, normalised by `app/places.py` so Britain, UK and United Kingdom are one tag |
+| `subject` | A specific thing the taxonomy is too broad for, e.g. `data-breach`, `voice-cloning` | The curator, told to reuse existing tags before inventing new ones |
+| `story` | One real-world event, once it has two articles | Clustering and the merge pass |
+| `lens` | `bauer-relevant` | The curator's lens score |
+| `user` | Anything the team adds | People |
+
+Categories carry **aliases** (`security` answers to hack, breach, leak and so on), so the filter
+box suggests the right tag for the word you think of. Aliases are for finding tags; they never
+create tags.
+
 ## A scan, step by step
 
 `app/pipeline/run.py` orchestrates. Each step writes what it decided, so `/runs` can show it.
@@ -178,7 +199,7 @@ the window. Anything found on their own site is attributed to them as a primary 
 | 4. Curate | Claude keeps or rejects each item against the lens, with the team's recent "Not relevant" flags and upvotes as examples. Writes summaries, scores, tags. | `candidates`, `feedback`, `votes`, `orgs` | `candidates` (decision, reason) | `topics/ai/lens.md`, `topics/ai/taxonomy.json`, `app/pipeline/prompts/curate.md` |
 | 5. Cluster | Fuzzy title match and shared keywords find candidate stories. Claude decides same story or not, and whether there are new facts. | `stories`, `posts` | `stories`, `posts`, `coverage`, `post_tags` | `app/pipeline/prompts/cluster.md`, `app/pipeline/cluster.py` |
 | 6. Merge pass | Claude looks over every story from the last 72 hours for ones that are really the same event, which happens when coverage arrives in different batches or scans. Merged duplicates with no new facts, votes or comments fold into the earlier post as extra sources. | `stories`, `posts` | `stories`, `posts`, `coverage` | `app/pipeline/prompts/merge.md`, `app/pipeline/cluster.py` |
-| 7. Story tags | Stories with `STORY_TAG_THRESHOLD` articles (default 3) get their own tag. | `stories` | `tags`, `post_tags` | `app/pipeline/cluster.py` |
+| 7. Story tags | Stories with `STORY_TAG_THRESHOLD` articles (default 2) get their own tag, so any overlap is visible straight away. | `stories` | `tags`, `post_tags` | `app/pipeline/cluster.py` |
 | 8. Upkeep | Recount mentions, propose orgs, run channel discovery for a few new orgs. | `post_tags`, `orgs` | `orgs`, `sources` | `app/sources/relevance.py`, `app/sources/channels.py` |
 
 Caps keep a scan bounded: `MAX_LLM_CALLS_PER_RUN`, `MAX_SEARCHES_PER_RUN`,
