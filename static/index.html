@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>News</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='4' fill='%23ffcc1a'/><text x='16' y='25' font-family='Arial Narrow,sans-serif' font-weight='900' font-size='24' text-anchor='middle' fill='%2314222f'>N</text></svg>">
+  <link rel="preload" href="/static/fonts/big-shoulders-latin-800-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <header class="top">
+    <div class="top-inner">
+      <div class="brand-row">
+        <a class="wordmark" href="/">News</a>
+        <span class="me" id="me"></span>
+      </div>
+      <div class="search" role="search">
+        <label class="visually-hidden" for="q">Search posts or filter by tag</label>
+        <input id="q" type="search" autocomplete="off" spellcheck="false"
+               placeholder="Search, or type a tag. Start with - to hide it."
+               role="combobox" aria-expanded="false" aria-controls="suggest" aria-autocomplete="list">
+        <ul id="suggest" class="suggest" role="listbox" hidden></ul>
+      </div>
+      <div class="filters" id="filters" aria-label="Active filters"></div>
+    </div>
+  </header>
+
+  <main id="feed" aria-live="polite"></main>
+
+  <footer id="footer"></footer>
+
+  <script src="/static/app.js" defer></script>
+</body>
+</html>

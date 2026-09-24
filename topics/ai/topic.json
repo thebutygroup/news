@@ -1,0 +1,35 @@
+{
+  "slug": "ai",
+  "label": "AI",
+  "description": "Artificial intelligence: models, research, tools, how companies and people use it, regulation and security.",
+  "enabled": true,
+  "lens_tag": {
+    "slug": "bauer-relevant",
+    "label": "Bauer relevant",
+    "threshold": 2,
+    "description": "Scored 2+ on the Bauer lens: advertising, OOH, measurement, geospatial, media, enterprise rollout, UK/EU/German rules."
+  },
+  "discovery_queries": [
+    "the biggest AI news of the last 24 hours",
+    "new AI model released this week, frontier and open weights",
+    "AI security incident, breach, data leak or vulnerability disclosed this week",
+    "EU AI Act implementing act, guidance or enforcement published",
+    "US federal AI bill, executive order or agency rule published",
+    "UK AI legislation or regulator guidance published (ICO, Ofcom, CMA, DSIT)",
+    "Germany AI regulation, Bundesnetzagentur KI announcement",
+    "company deploys AI agents in production, with results",
+    "surprising or creative new use of AI that people are talking about",
+    "AI newsletter, podcast or YouTube channel rapidly gaining popularity",
+    "AI in advertising, out-of-home or audience measurement",
+    "AI copyright lawsuit or publisher licensing deal"
+  ],
+  "similar": [
+    {"name": "Modelwire", "url": "https://themodelwire.com/", "note": "Ranked AI stories, refreshed every 15 minutes, Claude-curated"},
+    {"name": "Techmeme", "url": "https://www.techmeme.com/", "note": "The original clustered tech front page"},
+    {"name": "Hacker News", "url": "https://news.ycombinator.com/", "note": "Where engineers argue about it"},
+    {"name": "r/LocalLLaMA", "url": "https://www.reddit.com/r/LocalLLaMA/", "note": "Open models, hands-on"},
+    {"name": "TLDR AI", "url": "https://tldr.tech/ai", "note": "Daily newsletter"},
+    {"name": "The Batch", "url": "https://www.deeplearning.ai/the-batch/", "note": "Weekly, from DeepLearning.AI"},
+    {"name": "Import AI", "url": "https://importai.substack.com/", "note": "Weekly research and policy read"}
+  ]
+}

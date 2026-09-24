@@ -1,0 +1,1374 @@
+{
+ "_readme": "Known sources. Each org lists the channels we know for it. 'read' is optional: page means watch an HTML listing for new links. Seeded on startup; status and priority are then managed on /sources. URLs here were written by hand and are checked on first fetch; channel discovery adds more from each org's own site.",
+ "orgs": [
+  {
+   "slug": "openai",
+   "name": "OpenAI",
+   "kind": "lab",
+   "homepage": "https://openai.com",
+   "tier": 1,
+   "priority": "core",
+   "topics": [
+    "ai"
+   ],
+   "channels": [
+    {
+     "url": "https://openai.com/news/rss.xml",
+     "channel": "newsroom"
+    },
+    {
+     "url": "https://x.com/OpenAI",
+     "channel": "x"
+    },
+    {
+     "url": "https://www.linkedin.com/company/openai",
+     "channel": "linkedin"
+    }
+   ]
+  },
+  {
+   "slug": "anthropic",
+   "name": "Anthropic",
+   "kind": "lab",
+   "homepage": "https://www.anthropic.com",
+   "tier": 1,
+   "priority": "core",
+   "topics": [
+    "ai"
+   ],
+   "channels": [
+    {
+     "url": "https://www.anthropic.com/news",
+     "channel": "newsroom",
+     "read": "page"
+    },
+    {
+     "url": "https://x.com/AnthropicAI",
+     "channel": "x"
+    },
+    {
+     "url": "https://www.linkedin.com/company/anthropicresearch",
+     "channel": "linkedin"
+    }
+   ]
+  },
+  {
+   "slug": "google-deepmind",
+   "name": "Google DeepMind",
+   "kind": "lab",
+   "homepage": "https://deepmind.google",
+   "tier": 1,
+   "priority": "core",
+   "topics": [
+    "ai"
+   ],
+   "channels": [
+    {
+     "url": "https://deepmind.google/blog/rss.xml",
+     "channel": "blog"
+    },
+    {
+     "url": "https://x.com/GoogleDeepMind",
+     "channel": "x"
+    }
+   ],
+   "aliases": [
+    "DeepMind"
+   ]
+  },
+  {
+   "slug": "meta-ai",
+   "name": "Meta AI",
+   "kind": "lab",
+   "homepage": "https://ai.meta.com",
+   "tier": 1,
+   "priority": "core",
+   "topics": [
+    "ai"
+   ],
+   "channels": [
+    {
+     "url": "https://ai.meta.com/blog/",
+     "channel": "blog",
+     "read": "page"
+    },
+    {
+     "url": "https://x.com/AIatMeta",
+     "channel": "x"
+    }
+   ],
+   "aliases": [
+    "FAIR",
+    "Meta FAIR"
+   ]
+  },
+  {
+   "slug": "mistral-ai",
+   "name": "Mistral AI",
+   "kind": "lab",
+   "homepage": "https://mistral.ai",
+   "tier": 1,
+   "priority": "core",
+   "topics": [
+    "ai"
+   ],
+   "channels": [
+    {
+     "url": "https://mistral.ai/news",
+     "channel": "newsroom",
+     "read": "page"
+    },
+    {
+     "url": "https://x.com/MistralAI",
+     "channel": "x"
+    },
+    {
+     "url": "https://www.linkedin.com/company/mistralai",
+     "channel": "linkedin"
+    }
+   ],
+   "aliases": [
+    "Mistral"
+   ]
+  },
+  {
+   "slug": "xai",
+   "name": "xAI",
+   "kind": "lab",
+   "homepage": "https://x.ai",
+   "tier": 1,
+   "priority": "core",
+   "topics": [
+    "ai"
+   ],
+   "channels": [
+    {
+     "url": "https://x.ai/news",
+     "channel": "newsroom",
+     "read": "page"
+    },
+    {
+     "url": "https://x.com/xai",
+     "channel": "x"
+    }
+   ]
+  },
+  {
+   "slug": "cohere",
+   "name": "Cohere",
+   "kind": "lab",
+   "homepage": "https://cohere.com",
+   "tier": 1,
+   "priority": "core",
+   "topics": [
+    "ai"
+   ],
+   "channels": [
+    {
+     "url": "https://cohere.com/blog",
+     "channel": "blog",
+     "read": "page"
+    },
+    {
+     "url": "https://x.com/cohere",
+     "channel": "x"
+    }
+   ]
+  },
+  {
+   "slug": "hugging-face",
+   "name": "Hugging Face",
+   "kind": "lab",
+   "homepage": "https://huggingface.co",
+   "tier": 1,
+   "priority": "core",
+   "topics": [
+    "ai"
+   ],
+   "channels": [
+    {
+     "url": "https://huggingface.co/blog/feed.xml",
+     "channel": "blog"
+    },
+    {
+     "url": "https://x.com/huggingface",
+     "channel": "x"
+    },
+    {
+     "url": "https://www.linkedin.com/company/huggingface",
+     "channel": "linkedin"
+    }
+   ]
+  },
+  {
+   "slug": "deepseek",
+   "name": "DeepSeek",
+   "kind": "lab",
+   "homepage": "https://www.deepseek.com",
+   "tier": 1,
+   "priority": "core",
+   "topics": [
+    "ai"
+   ],
+   "channels": [
+    {
+     "url": "https://x.com/deepseek_ai",
+     "channel": "x"
+    },
+    {
+     "url": "https://huggingface.co/deepseek-ai",
+     "channel": "other",
+     "read": "none"
+    }
+   ]
+  },
+  {
+   "slug": "qwen",
+   "name": "Qwen (Alibaba)",
+   "kind": "lab",
+   "homepage": "https://qwenlm.github.io",
+   "tier": 1,
+   "priority": "core",
+   "topics": [
+    "ai"
+   ],
+   "channels": [
+    {
+     "url": "https://qwenlm.github.io/blog/",
+     "channel": "blog",
+     "read": "page"
+    },
+    {
+     "url": "https://x.com/Alibaba_Qwen",
+     "channel": "x"
+    }
+   ],
+   "aliases": [
+    "Alibaba Qwen",
+    "Qwen"
+   ]
+  },
+  {
+   "slug": "perplexity",
+   "name": "Perplexity",
+   "kind": "company",
+   "homepage": "https://www.perplexity.ai",
+   "tier": 1,
+   "priority": "core",
+   "topics": [
+    "ai"
+   ],
+   "channels": [
+    {
+     "url": "https://www.perplexity.ai/hub",
+     "channel": "blog",
+     "read": "page"
+    },
+    {
+     "url": "https://x.com/perplexity_ai",
+     "channel": "x"
+    }
+   ]
+  },
+  {
+   "slug": "stability-ai",
+   "name": "Stability AI",
+   "kind": "lab",
+   "homepage": "https://stability.ai",
+   "tier": 1,
+   "priority": "watch",
+   "topics": [
+    "ai"
+   ],
+   "channels": [
+    {
+     "url": "https://stability.ai/news",
+     "channel": "newsroom",
+     "read": "page"
+    },
+    {
+     "url": "https://x.com/StabilityAI",
+     "channel": "x"
+    }
+   ]
+  },
+  {
+   "slug": "elevenlabs",
+   "name": "ElevenLabs",
+   "kind": "company",
+   "homepage": "https://elevenlabs.io",
+   "tier": 1,
+   "priority": "watch",
+   "topics": [
+    "ai"
+   ],
+   "channels": [
+    {
+     "url": "https://elevenlabs.io/blog",
+     "channel": "blog",
+     "read": "page"
+    },
+    {
+     "url": "https://x.com/elevenlabsio",
+     "channel": "x"
+    }
+   ]
+  },
+  {
+   "slug": "scale-ai",
+   "name": "Scale AI",
+   "kind": "company",
+   "homepage": "https://scale.com",
+   "tier": 1,
+   "priority": "watch",
+   "topics": [
+    "ai"
+   ],
+   "channels": [
+    {
+     "url": "https://scale.com/blog",
+     "channel": "blog",
+     "read": "page"
+    }
+   ]
+  },
+  {
+   "slug": "bytedance-seed",
+   "name": "ByteDance Seed",
+   "kind": "lab",
+   "homepage": "https://seed.bytedance.com",
+   "tier": 1,
+   "priority": "watch",
+   "topics": [
+    "ai"
+   ],
+   "channels": [],
+   "aliases": [
+    "ByteDance"
+   ]
+  },
+  {
+   "slug": "cursor",
+   "name": "Cursor",
+   "kind": "company",
+   "homepage": "https://cursor.com",
+   "tier": 1,
+   "priority": "core",
+   "topics": [
+    "ai"
+   ],
+   "channels": [
+    {
+     "url": "https://cursor.com/blog",
+     "channel": "blog",
+     "read": "page"
+    }
+   ],
+   "aliases": [
+    "Anysphere"
+   ]
+  },
+  {
+   "slug": "alphabet",
+   "name": "Google",
+   "kind": "company",
+   "homepage": "https://blog.google",
+   "tier": 2,
+   "priority": "core",
+   "topics": [
+    "ai"
+   ],
+   "channels": [
+    {
+     "url": "https://blog.google/technology/ai/rss/",
+     "channel": "blog",
+     "tier": 1
+    },
+    {
+     "url": "https://research.google/blog/rss/",
+     "channel": "research",
+     "tier": 1
+    },
+    {
+     "url": "https://x.com/Google",
+     "channel": "x"
+    },
+    {
+     "url": "https://x.com/GoogleAI",
+     "channel": "x"
+    },
+    {
+     "url": "https://www.linkedin.com/company/google",
+     "channel": "linkedin"
+    }
+   ],
+   "aliases": [
+    "Alphabet",
+    "Google Research",
+    "Google AI"
+   ]
+  },
+  {
+   "slug": "microsoft",
+   "name": "Microsoft",
+   "kind": "company",
+   "homepage": "https://news.microsoft.com",
+   "tier": 2,
+   "priority": "core",
+   "topics": [
+    "ai"
+   ],
+   "channels": [
+    {
+     "url": "https://blogs.microsoft.com/ai/feed/",
+     "channel": "blog",
+     "tier": 1
+    },
+    {
+     "url": "https://www.microsoft.com/en-us/microsoft-365/blog/feed/",
+     "channel": "blog"
+    },
+    {
+     "url": "https://news.microsoft.com/source/",
+     "channel": "newsroom",
+     "read": "page"
+    },
+    {
+     "url": "https://x.com/Microsoft",
+     "channel": "x"
+    },
+    {
+     "url": "https://www.linkedin.com/company/microsoft",
+     "channel": "linkedin"
+    }
+   ],
+   "aliases": [
+    "Microsoft AI",
+    "Microsoft 365"
+   ],
+   "notes": "Microsoft 365 and Copilot matter to Bauer rollout"
+  },
+  {
+   "slug": "github",
+   "name": "GitHub",
+   "kind": "company",
+   "homepage": "https://github.blog",
+   "tier": 2,
+   "priority": "core",
+   "topics": [
+    "ai"
+   ],
+   "channels": [
+    {
+     "url": "https://github.blog/feed/",
+     "channel": "blog"
+    }
+   ],
+   "aliases": [
+    "GitHub Copilot"
+   ]
+  },
+  {
+   "slug": "amazon",
+   "name": "Amazon",
+   "kind": "company",
+   "homepage": "https://www.aboutamazon.com",
+   "tier": 2,
+   "priority": "core",
+   "topics": [
+    "ai"
+   ],
+   "channels": [
+    {
+     "url": "https://aws.amazon.com/blogs/machine-learning/feed/",
+     "channel": "blog"
+    },
+    {
+     "url": "https://aws.amazon.com/blogs/aws/feed/",
+     "channel": "blog"
+    },
+    {
+     "url": "https://www.aboutamazon.com/news",
+     "channel": "newsroom",
+     "read": "page"
+    },
+    {
+     "url": "https://x.com/awscloud",
+     "channel": "x"
+    },
+    {
+     "url": "https://www.linkedin.com/company/amazon-web-services",
+     "channel": "linkedin"
+    }
+   ],
+   "aliases": [
+    "AWS",
+    "Amazon Web Services"
+   ]
+  },
+  {
+   "slug": "apple",
+   "name": "Apple",
+   "kind": "company",
+   "homepage": "https://www.apple.com",
+   "tier": 2,
+   "priority": "core",
+   "topics": [
+    "ai"
+   ],
+   "channels": [
+    {
+     "url": "https://www.apple.com/newsroom/rss-feed.rss",
+     "channel": "newsroom"
+    },
+    {
+     "url": "https://x.com/Apple",
+     "channel": "x"
+    }
+   ]
+  },
+  {
+   "slug": "meta",
+   "name": "Meta",
+   "kind": "company",
+   "homepage": "https://about.fb.com",
+   "tier": 2,
+   "priority": "core",
+   "topics": [
+    "ai"
+   ],
+   "channels": [
+    {
+     "url": "https://about.fb.com/news/",
+     "channel": "newsroom",
+     "read": "page"
+    },
+    {
+     "url": "https://www.linkedin.com/company/meta",
+     "channel": "linkedin"
+    }
+   ],
+   "aliases": [
+    "Facebook"
+   ]
+  },
+  {
+   "slug": "nvidia",
+   "name": "NVIDIA",
+   "kind": "company",
+   "homepage": "https://www.nvidia.com",
+   "tier": 2,
+   "priority": "core",
+   "topics": [
+    "ai"
+   ],
+   "channels": [
+    {
+     "url": "https://blogs.nvidia.com/feed/",
+     "channel": "blog"
+    },
+    {
+     "url": "https://nvidianews.nvidia.com/",
+     "channel": "newsroom",
+     "read": "page"
+    },
+    {
+     "url": "https://x.com/nvidia",
+     "channel": "x"
+    },
+    {
+     "url": "https://www.linkedin.com/company/nvidia",
+     "channel": "linkedin"
+    }
+   ]
+  },
+  {
+   "slug": "salesforce",
+   "name": "Salesforce",
+   "kind": "company",
+   "homepage": "https://www.salesforce.com",
+   "tier": 2,
+   "priority": "core",
+   "topics": [
+    "ai"
+   ],
+   "channels": [
+    {
+     "url": "https://www.salesforce.com/news/",
+     "channel": "newsroom",
+     "read": "page"
+    },
+    {
+     "url": "https://x.com/salesforce",
+     "channel": "x"
+    },
+    {
+     "url": "https://www.linkedin.com/company/salesforce",
+     "channel": "linkedin"
+    }
+   ]
+  },
+  {
+   "slug": "ibm",
+   "name": "IBM",
+   "kind": "company",
+   "homepage": "https://www.ibm.com",
+   "tier": 2,
+   "priority": "core",
+   "topics": [
+    "ai"
+   ],
+   "channels": [
+    {
+     "url": "https://newsroom.ibm.com/",
+     "channel": "newsroom",
+     "read": "page"
+    },
+    {
+     "url": "https://x.com/IBM",
+     "channel": "x"
+    },
+    {
+     "url": "https://www.linkedin.com/company/ibm",
+     "channel": "linkedin"
+    }
+   ]
+  },
+  {
+   "slug": "oracle",
+   "name": "Oracle",
+   "kind": "company",
+   "homepage": "https://www.oracle.com",
+   "tier": 2,
+   "priority": "watch",
+   "topics": [
+    "ai"
+   ],
+   "channels": [
+    {
+     "url": "https://www.oracle.com/news/",
+     "channel": "newsroom",
+     "read": "page"
+    }
+   ]
+  },
+  {
+   "slug": "adobe",
+   "name": "Adobe",
+   "kind": "company",
+   "homepage": "https://www.adobe.com",
+   "tier": 2,
+   "priority": "watch",
+   "topics": [
+    "ai"
+   ],
+   "channels": [
+    {
+     "url": "https://news.adobe.com/",
+     "channel": "newsroom",
+     "read": "page"
+    }
+   ],
+   "aliases": [
+    "Adobe Firefly"
+   ]
+  },
+  {
+   "slug": "samsung",
+   "name": "Samsung",
+   "kind": "company",
+   "homepage": "https://news.samsung.com/global",
+   "tier": 2,
+   "priority": "watch",
+   "topics": [
+    "ai"
+   ],
+   "channels": [
+    {
+     "url": "https://news.samsung.com/global/",
+     "channel": "newsroom",
+     "read": "page"
+    }
+   ]
+  },
+  {
+   "slug": "intel",
+   "name": "Intel",
+   "kind": "company",
+   "homepage": "https://www.intel.com",
+   "tier": 2,
+   "priority": "watch",
+   "topics": [
+    "ai"
+   ],
+   "channels": [
+    {
+     "url": "https://www.intel.com/content/www/us/en/newsroom/home.html",
+     "channel": "newsroom",
+     "read": "page"
+    }
+   ]
+  },
+  {
+   "slug": "amd",
+   "name": "AMD",
+   "kind": "company",
+   "homepage": "https://www.amd.com",
+   "tier": 2,
+   "priority": "watch",
+   "topics": [
+    "ai"
+   ],
+   "channels": [
+    {
+     "url": "https://www.amd.com/en/newsroom.html",
+     "channel": "newsroom",
+     "read": "page"
+    }
+   ]
+  },
+  {
+   "slug": "qualcomm",
+   "name": "Qualcomm",
+   "kind": "company",
+   "homepage": "https://www.qualcomm.com",
+   "tier": 2,
+   "priority": "watch",
+   "topics": [
+    "ai"
+   ],
+   "channels": [
+    {
+     "url": "https://www.qualcomm.com/news",
+     "channel": "newsroom",
+     "read": "page"
+    }
+   ]
+  },
+  {
+   "slug": "databricks",
+   "name": "Databricks",
+   "kind": "company",
+   "homepage": "https://www.databricks.com",
+   "tier": 2,
+   "priority": "watch",
+   "topics": [
+    "ai"
+   ],
+   "channels": [
+    {
+     "url": "https://www.databricks.com/blog",
+     "channel": "blog",
+     "read": "page"
+    },
+    {
+     "url": "https://x.com/databricks",
+     "channel": "x"
+    },
+    {
+     "url": "https://www.linkedin.com/company/databricks",
+     "channel": "linkedin"
+    }
+   ]
+  },
+  {
+   "slug": "snowflake",
+   "name": "Snowflake",
+   "kind": "company",
+   "homepage": "https://www.snowflake.com",
+   "tier": 2,
+   "priority": "watch",
+   "topics": [
+    "ai"
+   ],
+   "channels": [
+    {
+     "url": "https://www.snowflake.com/en/news/",
+     "channel": "newsroom",
+     "read": "page"
+    }
+   ]
+  },
+  {
+   "slug": "cloudflare",
+   "name": "Cloudflare",
+   "kind": "company",
+   "homepage": "https://www.cloudflare.com",
+   "tier": 2,
+   "priority": "watch",
+   "topics": [
+    "ai"
+   ],
+   "channels": [
+    {
+     "url": "https://blog.cloudflare.com/rss/",
+     "channel": "blog"
+    }
+   ]
+  },
+  {
+   "slug": "jcdecaux",
+   "name": "JCDecaux",
+   "kind": "company",
+   "homepage": "https://www.jcdecaux.com",
+   "tier": 2,
+   "priority": "watch",
+   "topics": [
+    "ai"
+   ],
+   "channels": [
+    {
+     "url": "https://www.jcdecaux.com/press-releases",
+     "channel": "newsroom",
+     "read": "page"
+    }
+   ]
+  },
+  {
+   "slug": "clear-channel-outdoor",
+   "name": "Clear Channel Outdoor",
+   "kind": "company",
+   "homepage": "https://www.clearchanneloutdoor.com",
+   "tier": 2,
+   "priority": "watch",
+   "topics": [
+    "ai"
+   ],
+   "channels": []
+  },
+  {
+   "slug": "ocean-outdoor",
+   "name": "Ocean Outdoor",
+   "kind": "company",
+   "homepage": "https://oceanoutdoor.com",
+   "tier": 2,
+   "priority": "watch",
+   "topics": [
+    "ai"
+   ],
+   "channels": []
+  },
+  {
+   "slug": "global",
+   "name": "Global",
+   "kind": "company",
+   "homepage": "https://global.com",
+   "tier": 2,
+   "priority": "watch",
+   "topics": [
+    "ai"
+   ],
+   "channels": [],
+   "notes": "UK media group with a large outdoor business"
+  },
+  {
+   "slug": "outsmart",
+   "name": "Outsmart",
+   "kind": "community",
+   "homepage": "https://www.outsmart.org.uk",
+   "tier": 2,
+   "priority": "watch",
+   "topics": [
+    "ai"
+   ],
+   "channels": [],
+   "notes": "UK out-of-home trade body"
+  },
+  {
+   "slug": "route",
+   "name": "Route",
+   "kind": "company",
+   "homepage": "https://route.org.uk",
+   "tier": 2,
+   "priority": "watch",
+   "topics": [
+    "ai"
+   ],
+   "channels": [],
+   "notes": "UK out-of-home audience measurement"
+  },
+  {
+   "slug": "the-trade-desk",
+   "name": "The Trade Desk",
+   "kind": "company",
+   "homepage": "https://www.thetradedesk.com",
+   "tier": 2,
+   "priority": "watch",
+   "topics": [
+    "ai"
+   ],
+   "channels": []
+  },
+  {
+   "slug": "vistar-media",
+   "name": "Vistar Media",
+   "kind": "company",
+   "homepage": "https://www.vistarmedia.com",
+   "tier": 2,
+   "priority": "watch",
+   "topics": [
+    "ai"
+   ],
+   "channels": []
+  },
+  {
+   "slug": "broadsign",
+   "name": "Broadsign",
+   "kind": "company",
+   "homepage": "https://broadsign.com",
+   "tier": 2,
+   "priority": "watch",
+   "topics": [
+    "ai"
+   ],
+   "channels": []
+  },
+  {
+   "slug": "eu-ai-office",
+   "name": "EU AI Office",
+   "kind": "regulator",
+   "homepage": "https://digital-strategy.ec.europa.eu",
+   "tier": 2,
+   "priority": "core",
+   "topics": [
+    "ai"
+   ],
+   "channels": [
+    {
+     "url": "https://digital-strategy.ec.europa.eu/en/news",
+     "channel": "newsroom",
+     "read": "page"
+    }
+   ],
+   "aliases": [
+    "European Commission",
+    "EU Commission"
+   ]
+  },
+  {
+   "slug": "uk-dsit",
+   "name": "UK DSIT",
+   "kind": "regulator",
+   "homepage": "https://www.gov.uk/government/organisations/department-for-science-innovation-and-technology",
+   "tier": 2,
+   "priority": "core",
+   "topics": [
+    "ai"
+   ],
+   "channels": [
+    {
+     "url": "https://www.gov.uk/search/news-and-communications.atom?organisations%5B%5D=department-for-science-innovation-and-technology&order=updated-newest",
+     "channel": "newsroom"
+    }
+   ],
+   "aliases": [
+    "Department for Science, Innovation and Technology",
+    "DSIT"
+   ]
+  },
+  {
+   "slug": "uk-cma",
+   "name": "UK CMA",
+   "kind": "regulator",
+   "homepage": "https://www.gov.uk/government/organisations/competition-and-markets-authority",
+   "tier": 2,
+   "priority": "core",
+   "topics": [
+    "ai"
+   ],
+   "channels": [
+    {
+     "url": "https://www.gov.uk/search/news-and-communications.atom?organisations%5B%5D=competition-and-markets-authority&order=updated-newest",
+     "channel": "newsroom"
+    }
+   ],
+   "aliases": [
+    "CMA",
+    "Competition and Markets Authority"
+   ]
+  },
+  {
+   "slug": "ico",
+   "name": "ICO",
+   "kind": "regulator",
+   "homepage": "https://ico.org.uk",
+   "tier": 2,
+   "priority": "core",
+   "topics": [
+    "ai"
+   ],
+   "channels": [
+    {
+     "url": "https://ico.org.uk/about-the-ico/media-centre/news-and-blogs/",
+     "channel": "newsroom",
+     "read": "page"
+    }
+   ],
+   "aliases": [
+    "Information Commissioner's Office"
+   ]
+  },
+  {
+   "slug": "ofcom",
+   "name": "Ofcom",
+   "kind": "regulator",
+   "homepage": "https://www.ofcom.org.uk",
+   "tier": 2,
+   "priority": "watch",
+   "topics": [
+    "ai"
+   ],
+   "channels": []
+  },
+  {
+   "slug": "uk-aisi",
+   "name": "AI Security Institute",
+   "kind": "regulator",
+   "homepage": "https://www.aisi.gov.uk",
+   "tier": 2,
+   "priority": "core",
+   "topics": [
+    "ai"
+   ],
+   "channels": [],
+   "aliases": [
+    "AISI",
+    "UK AI Security Institute",
+    "AI Safety Institute"
+   ]
+  },
+  {
+   "slug": "nist",
+   "name": "NIST",
+   "kind": "regulator",
+   "homepage": "https://www.nist.gov",
+   "tier": 2,
+   "priority": "core",
+   "topics": [
+    "ai"
+   ],
+   "channels": [
+    {
+     "url": "https://www.nist.gov/artificial-intelligence",
+     "channel": "newsroom",
+     "read": "page"
+    }
+   ]
+  },
+  {
+   "slug": "ftc",
+   "name": "FTC",
+   "kind": "regulator",
+   "homepage": "https://www.ftc.gov",
+   "tier": 2,
+   "priority": "core",
+   "topics": [
+    "ai"
+   ],
+   "channels": [
+    {
+     "url": "https://www.ftc.gov/news-events/news/press-releases",
+     "channel": "newsroom",
+     "read": "page"
+    }
+   ],
+   "aliases": [
+    "Federal Trade Commission"
+   ]
+  },
+  {
+   "slug": "bundesnetzagentur",
+   "name": "Bundesnetzagentur",
+   "kind": "regulator",
+   "homepage": "https://www.bundesnetzagentur.de",
+   "tier": 2,
+   "priority": "watch",
+   "topics": [
+    "ai"
+   ],
+   "channels": []
+  },
+  {
+   "slug": "simon-willison",
+   "name": "Simon Willison",
+   "kind": "person",
+   "homepage": "https://simonwillison.net",
+   "tier": 1,
+   "priority": "core",
+   "topics": [
+    "ai"
+   ],
+   "channels": [
+    {
+     "url": "https://simonwillison.net/atom/everything/",
+     "channel": "blog"
+    },
+    {
+     "url": "https://x.com/simonw",
+     "channel": "x"
+    }
+   ]
+  },
+  {
+   "slug": "andrej-karpathy",
+   "name": "Andrej Karpathy",
+   "kind": "person",
+   "homepage": "https://karpathy.ai",
+   "tier": 1,
+   "priority": "core",
+   "topics": [
+    "ai"
+   ],
+   "channels": [
+    {
+     "url": "https://x.com/karpathy",
+     "channel": "x"
+    }
+   ]
+  },
+  {
+   "slug": "latent-space",
+   "name": "Latent Space",
+   "kind": "publication",
+   "homepage": "https://www.latent.space",
+   "tier": 1,
+   "priority": "core",
+   "topics": [
+    "ai"
+   ],
+   "channels": [
+    {
+     "url": "https://www.latent.space/feed",
+     "channel": "substack"
+    }
+   ]
+  },
+  {
+   "slug": "interconnects",
+   "name": "Interconnects",
+   "kind": "publication",
+   "homepage": "https://www.interconnects.ai",
+   "tier": 1,
+   "priority": "core",
+   "topics": [
+    "ai"
+   ],
+   "channels": [
+    {
+     "url": "https://www.interconnects.ai/feed",
+     "channel": "substack"
+    }
+   ],
+   "aliases": [
+    "Nathan Lambert"
+   ]
+  },
+  {
+   "slug": "import-ai",
+   "name": "Import AI",
+   "kind": "publication",
+   "homepage": "https://importai.substack.com",
+   "tier": 1,
+   "priority": "core",
+   "topics": [
+    "ai"
+   ],
+   "channels": [
+    {
+     "url": "https://importai.substack.com/feed",
+     "channel": "substack"
+    }
+   ],
+   "aliases": [
+    "Jack Clark"
+   ]
+  },
+  {
+   "slug": "dwarkesh",
+   "name": "Dwarkesh Podcast",
+   "kind": "publication",
+   "homepage": "https://www.dwarkesh.com",
+   "tier": 1,
+   "priority": "core",
+   "topics": [
+    "ai"
+   ],
+   "channels": [
+    {
+     "url": "https://www.dwarkesh.com/feed",
+     "channel": "podcast"
+    }
+   ],
+   "aliases": [
+    "Dwarkesh Patel"
+   ]
+  },
+  {
+   "slug": "practical-ai",
+   "name": "Practical AI",
+   "kind": "publication",
+   "homepage": "https://changelog.com/practicalai",
+   "tier": 1,
+   "priority": "core",
+   "topics": [
+    "ai"
+   ],
+   "channels": [
+    {
+     "url": "https://changelog.com/practicalai/feed",
+     "channel": "podcast"
+    }
+   ]
+  },
+  {
+   "slug": "techcrunch",
+   "name": "TechCrunch",
+   "kind": "publication",
+   "homepage": "https://techcrunch.com",
+   "tier": 1,
+   "priority": "core",
+   "topics": [
+    "ai"
+   ],
+   "channels": []
+  },
+  {
+   "slug": "the-verge",
+   "name": "The Verge",
+   "kind": "publication",
+   "homepage": "https://www.theverge.com",
+   "tier": 1,
+   "priority": "core",
+   "topics": [
+    "ai"
+   ],
+   "channels": []
+  },
+  {
+   "slug": "ars-technica",
+   "name": "Ars Technica",
+   "kind": "publication",
+   "homepage": "https://arstechnica.com",
+   "tier": 1,
+   "priority": "core",
+   "topics": [
+    "ai"
+   ],
+   "channels": []
+  },
+  {
+   "slug": "mit-technology-review",
+   "name": "MIT Technology Review",
+   "kind": "publication",
+   "homepage": "https://www.technologyreview.com",
+   "tier": 1,
+   "priority": "core",
+   "topics": [
+    "ai"
+   ],
+   "channels": []
+  },
+  {
+   "slug": "bleepingcomputer",
+   "name": "BleepingComputer",
+   "kind": "publication",
+   "homepage": "https://www.bleepingcomputer.com",
+   "tier": 2,
+   "priority": "core",
+   "topics": [
+    "ai"
+   ],
+   "channels": [
+    {
+     "url": "https://www.bleepingcomputer.com/feed/",
+     "channel": "newsroom"
+    }
+   ]
+  },
+  {
+   "slug": "the-hacker-news",
+   "name": "The Hacker News (security)",
+   "kind": "publication",
+   "homepage": "https://thehackernews.com",
+   "tier": 2,
+   "priority": "core",
+   "topics": [
+    "ai"
+   ],
+   "channels": [
+    {
+     "url": "https://feeds.feedburner.com/TheHackersNews",
+     "channel": "newsroom"
+    }
+   ]
+  },
+  {
+   "slug": "press-gazette",
+   "name": "Press Gazette",
+   "kind": "publication",
+   "homepage": "https://pressgazette.co.uk",
+   "tier": 2,
+   "priority": "core",
+   "topics": [
+    "ai"
+   ],
+   "channels": [
+    {
+     "url": "https://pressgazette.co.uk/feed/",
+     "channel": "newsroom"
+    }
+   ]
+  },
+  {
+   "slug": "nieman-lab",
+   "name": "Nieman Lab",
+   "kind": "publication",
+   "homepage": "https://www.niemanlab.org",
+   "tier": 2,
+   "priority": "core",
+   "topics": [
+    "ai"
+   ],
+   "channels": [
+    {
+     "url": "https://www.niemanlab.org/feed/",
+     "channel": "newsroom"
+    }
+   ]
+  },
+  {
+   "slug": "digiday",
+   "name": "Digiday",
+   "kind": "publication",
+   "homepage": "https://digiday.com",
+   "tier": 2,
+   "priority": "core",
+   "topics": [
+    "ai"
+   ],
+   "channels": [
+    {
+     "url": "https://digiday.com/feed/",
+     "channel": "newsroom"
+    }
+   ]
+  },
+  {
+   "slug": "adexchanger",
+   "name": "AdExchanger",
+   "kind": "publication",
+   "homepage": "https://www.adexchanger.com",
+   "tier": 2,
+   "priority": "core",
+   "topics": [
+    "ai"
+   ],
+   "channels": [
+    {
+     "url": "https://www.adexchanger.com/feed/",
+     "channel": "newsroom"
+    }
+   ]
+  }
+ ]
+}

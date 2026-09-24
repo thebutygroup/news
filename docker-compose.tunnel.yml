@@ -1,0 +1,16 @@
+# Optional: put the web container on the same Docker network as your existing cloudflared,
+# so the tunnel can reach it as http://news-web:8080 without going through the host.
+#   docker compose -f docker-compose.yml -f docker-compose.tunnel.yml up -d --build
+# Find cloudflared's network with:  docker inspect <cloudflared container> --format '{{json .NetworkSettings.Networks}}'
+
+services:
+  web:
+    networks:
+      default: {}
+      tunnel:
+        aliases: [news-web]
+
+networks:
+  tunnel:
+    external: true
+    name: ${TUNNEL_NETWORK:?set TUNNEL_NETWORK in .env to cloudflared's network name}

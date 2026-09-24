@@ -1,0 +1,75 @@
+[
+ {
+  "name": "TechCrunch AI",
+  "org": "techcrunch",
+  "url": "https://techcrunch.com/category/artificial-intelligence/feed/",
+  "channel": "newsroom",
+  "tier": 1
+ },
+ {
+  "name": "The Verge AI",
+  "org": "the-verge",
+  "url": "https://www.theverge.com/rss/ai-artificial-intelligence/index.xml",
+  "channel": "newsroom",
+  "tier": 1
+ },
+ {
+  "name": "Ars Technica AI",
+  "org": "ars-technica",
+  "url": "https://arstechnica.com/ai/feed/",
+  "channel": "newsroom",
+  "tier": 1
+ },
+ {
+  "name": "MIT Technology Review AI",
+  "org": "mit-technology-review",
+  "url": "https://www.technologyreview.com/topic/artificial-intelligence/feed",
+  "channel": "newsroom",
+  "tier": 1
+ },
+ {
+  "name": "r/LocalLLaMA",
+  "url": "https://www.reddit.com/r/LocalLLaMA/top/.rss?t=day",
+  "channel": "community",
+  "tier": 2
+ },
+ {
+  "name": "r/MachineLearning",
+  "url": "https://www.reddit.com/r/MachineLearning/top/.rss?t=day",
+  "channel": "community",
+  "tier": 2
+ },
+ {
+  "name": "Hacker News: AI",
+  "kind": "hn",
+  "query": "AI",
+  "min_points": 150,
+  "tier": 2
+ },
+ {
+  "name": "Hacker News: LLM",
+  "kind": "hn",
+  "query": "LLM",
+  "min_points": 100,
+  "tier": 2
+ },
+ {
+  "name": "Hacker News: top stories",
+  "kind": "hn",
+  "query": "",
+  "min_points": 250,
+  "tier": 2
+ },
+ {
+  "name": "Federal Register: AI",
+  "url": "https://www.federalregister.gov/api/v1/documents.rss?conditions%5Bterm%5D=%22artificial+intelligence%22&order=newest",
+  "channel": "search-feed",
+  "tier": 2
+ },
+ {
+  "name": "GOV.UK: AI",
+  "url": "https://www.gov.uk/search/all.atom?keywords=artificial+intelligence&order=updated-newest",
+  "channel": "search-feed",
+  "tier": 2
+ }
+]
