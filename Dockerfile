@@ -14,8 +14,8 @@ COPY static ./static
 COPY topics ./topics
 COPY registry ./registry
 
-RUN useradd --system --uid 10001 news
-USER news
+RUN useradd --system --uid 10001 newsfeed
+USER newsfeed
 
 EXPOSE 8080
 CMD ["uvicorn", "app.web:app", "--host", "0.0.0.0", "--port", "8080", "--proxy-headers", "--forwarded-allow-ips", "*"]
