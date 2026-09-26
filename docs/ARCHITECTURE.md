@@ -206,6 +206,24 @@ Caps keep a scan bounded: `MAX_LLM_CALLS_PER_RUN`, `MAX_SEARCHES_PER_RUN`,
 `MAX_CANDIDATES_PER_RUN`, `X_MAX_READS_PER_RUN`. A run that hits a cap stops cleanly and says so
 on `/runs`.
 
+## Daily audio briefing
+
+Every morning at 05:30 UK (`PODCAST_CRON`), after the 04:00 scan, the worker makes a short
+two-host audio briefing (`app/podcast.py`):
+
+1. Pick the top `PODCAST_STORIES` stories posted since the last episode, one post per story,
+   ranked by importance, Bauer relevance and votes. Posts flagged "Not relevant" are skipped.
+2. Claude (`PODCAST_MODEL`, Haiku by default) writes the script from our own summaries, and is
+   told never to add facts.
+3. Text to speech (`PODCAST_TTS`) reads each turn and the MP3s are joined. `edge` is free but
+   uses an unofficial Microsoft endpoint that could stop working; `azure` is the same voices
+   through Azure's official Speech service.
+4. The MP3 is saved in the `news-media` Docker volume, never in git. It plays at the top of the
+   feed, and `/podcast.xml` is a podcast feed you can add to any podcast app. The newest 30
+   episodes keep their audio (`PODCAST_KEEP`).
+
+Admins can make one on demand: `docker compose exec worker python -m app.podcast`.
+
 ## Where everything is stored
 
 ### Files (in the repo, edited by people)
@@ -255,6 +273,7 @@ erDiagram
 | `coverage` | Another outlet's article about a story, folded under a post | Cluster | "N more sources" |
 | `tags`, `post_tags` | Tags and which posts carry them | Seed, curator, cluster, people | Feed filters, typeahead, relevance |
 | `votes`, `comments`, `feedback` | What the team did | Web | Feed, curator (feedback and votes) |
+| `episodes` | A daily audio briefing: script, stories used, show notes, audio file name | Podcast job | Player, `/podcast.xml` |
 
 We store summaries, titles and links. We never store article text.
 

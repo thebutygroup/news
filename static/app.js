@@ -281,6 +281,15 @@ function renderFeed() {
     feed.append(h("p", { class: "notice" },
       `There is no tag called ${state.unknown.map((t) => `#${t}`).join(", ")}, so it was ignored.`));
   }
+  if (state.briefing && !(state.include.length || state.exclude.length || state.q)) {
+    const b = state.briefing;
+    feed.append(h("section", { class: "briefing", "aria-label": "Daily audio briefing" },
+      h("div", { class: "briefing-head" },
+        h("strong", {}, "Daily briefing"),
+        h("span", {}, `${b.title}${b.duration_seconds ? `, ${Math.max(1, Math.round(b.duration_seconds / 60))} min` : ""}`),
+        h("a", { href: "/podcast.xml", title: "Add this URL to your podcast app" }, "Podcast feed")),
+      h("audio", { controls: true, preload: "none", src: b.url })));
+  }
   const filtered = state.include.length || state.exclude.length || state.q;
   if (!state.posts.length) {
     feed.append(filtered
@@ -537,6 +546,7 @@ async function init() {
   renderFilters();
   const [me, meta] = await Promise.all([api("/api/me").catch(() => ({})), api("/api/meta").catch(() => ({}))]);
   state.me = me || { email: null };
+  state.briefing = await api("/api/podcast/latest").catch(() => null);
   state.meta = { ...state.meta, ...(meta || {}) };
   renderMe();
   renderFooter();

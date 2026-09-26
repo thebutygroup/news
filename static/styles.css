@@ -153,6 +153,10 @@ main { max-width: var(--column); margin: 0 auto; padding: 0 0 4rem; }
 .empty h2 { font: 800 var(--step-2) / 1.1 var(--display); margin: 0 0 0.5rem; }
 
 .day { margin-top: 1.25rem; }
+.briefing { margin: 1rem 1rem 0; padding: 0.75rem 1rem; background: var(--surface); border-left: 4px solid var(--poster); }
+.briefing-head { display: flex; flex-wrap: wrap; gap: 0.25rem 0.75rem; align-items: baseline; font-size: var(--step--1); }
+.briefing-head a { margin-left: auto; }
+.briefing audio { width: 100%; margin-top: 0.5rem; }
 .day-poster {
   display: flex; align-items: flex-end; justify-content: space-between; gap: 1rem;
   width: 100%;

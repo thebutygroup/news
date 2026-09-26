@@ -66,6 +66,23 @@ class Settings:
     org_sweep_per_run: int = field(default_factory=lambda: _int("ORG_SWEEP_PER_RUN", 8))
     channel_discovery_per_run: int = field(default_factory=lambda: _int("CHANNEL_DISCOVERY_PER_RUN", 5))
 
+    # Daily audio briefing
+    podcast_enabled: bool = field(default_factory=lambda: _env("PODCAST_ENABLED", "1") == "1")
+    podcast_cron: str = field(default_factory=lambda: _env("PODCAST_CRON", "30 5 * * *"))
+    podcast_model: str = field(default_factory=lambda: _env("PODCAST_MODEL", "claude-haiku-4-5-20251001"))
+    podcast_tts: str = field(default_factory=lambda: _env("PODCAST_TTS", "edge"))  # edge | azure | fake
+    podcast_host_a: str = field(default_factory=lambda: _env("PODCAST_HOST_A", "Alex"))
+    podcast_host_b: str = field(default_factory=lambda: _env("PODCAST_HOST_B", "Sam"))
+    podcast_voice_a: str = field(default_factory=lambda: _env("PODCAST_VOICE_A", "en-GB-RyanNeural"))
+    podcast_voice_b: str = field(default_factory=lambda: _env("PODCAST_VOICE_B", "en-GB-SoniaNeural"))
+    podcast_stories: int = field(default_factory=lambda: _int("PODCAST_STORIES", 8))
+    podcast_words: int = field(default_factory=lambda: _int("PODCAST_WORDS", 800))
+    podcast_keep: int = field(default_factory=lambda: _int("PODCAST_KEEP", 30))
+    azure_speech_key: str | None = field(default_factory=lambda: _env("AZURE_SPEECH_KEY"))
+    azure_speech_region: str = field(default_factory=lambda: _env("AZURE_SPEECH_REGION", "uksouth"))
+    media_dir: Path = field(default_factory=lambda: Path(_env("MEDIA_DIR", "/data/media")))
+    public_base_url: str = field(default_factory=lambda: _env("PUBLIC_BASE_URL", "https://news.thebutygroup.com").rstrip("/"))
+
     # X (optional, pay per use)
     x_bearer_token: str | None = field(default_factory=lambda: _env("X_BEARER_TOKEN"))
     x_max_reads_per_run: int = field(default_factory=lambda: _int("X_MAX_READS_PER_RUN", 300))

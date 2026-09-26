@@ -14,7 +14,7 @@ COPY static ./static
 COPY topics ./topics
 COPY registry ./registry
 
-RUN useradd --system --uid 10001 newsfeed
+RUN useradd --system --uid 10001 newsfeed && mkdir -p /data/media && chown newsfeed /data/media
 USER newsfeed
 
 EXPOSE 8080

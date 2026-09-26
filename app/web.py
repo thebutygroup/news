@@ -8,7 +8,7 @@ from contextlib import asynccontextmanager
 from urllib.parse import urlsplit
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
@@ -59,6 +59,8 @@ async def cache_headers(request: Request, call_next):
     including through Cloudflare's cache. Fonts never change, so they're cached for a year."""
     response = await call_next(request)
     path = request.url.path
+    if path.startswith("/podcast/"):
+        return response
     if path.startswith("/static/fonts/"):
         response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
     elif path.startswith("/static/") or not path.startswith("/api/"):
@@ -153,6 +155,38 @@ def sources_page():
 
 
 app.mount("/static", StaticFiles(directory=settings.static_dir), name="static")
+
+
+@app.get("/podcast.xml", include_in_schema=False)
+def podcast_feed():
+    from .podcast import rss
+
+    return Response(rss(), media_type="application/rss+xml")
+
+
+@app.get("/podcast/{episode_id}.mp3", include_in_schema=False)
+def podcast_audio(episode_id: int):
+    with conn() as c:
+        row = c.execute("select audio_file from episodes where id = %s and status = 'ok'", (episode_id,)).fetchone()
+    path = settings.media_dir / row["audio_file"] if row and row["audio_file"] else None
+    if not path or not path.exists():
+        raise HTTPException(404, "Episode not found")
+    return FileResponse(path, media_type="audio/mpeg", headers={"Cache-Control": "public, max-age=86400"})
+
+
+@app.get("/api/podcast/latest")
+def podcast_latest():
+    from .podcast import latest
+
+    ep = latest()
+    return {**ep, "url": f"/podcast/{ep['id']}.mp3"} if ep else None
+
+
+@app.post("/api/podcast/generate")
+def podcast_generate(_admin: str = Depends(require_admin)):
+    from .podcast import make_episode
+
+    return make_episode()
 
 
 @app.get("/healthz")

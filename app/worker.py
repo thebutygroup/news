@@ -49,6 +49,11 @@ def main() -> None:
     sched.add_job(scheduled, CronTrigger.from_crontab(settings.scan_cron, timezone=settings.timezone),
                   id="scan", max_instances=1, coalesce=True, misfire_grace_time=3600)
     sched.add_job(check_requests, "interval", seconds=30, id="requests", max_instances=1, coalesce=True)
+    if settings.podcast_enabled:
+        from .podcast import make_episode
+
+        sched.add_job(make_episode, CronTrigger.from_crontab(settings.podcast_cron, timezone=settings.timezone),
+                      id="podcast", max_instances=1, coalesce=True, misfire_grace_time=3600)
     log.info("worker up, scans on '%s' (%s)", settings.scan_cron, settings.timezone)
     sched.start()
 

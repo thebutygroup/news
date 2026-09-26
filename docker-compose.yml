@@ -29,6 +29,8 @@ services:
         condition: service_healthy
     ports:
       - "127.0.0.1:${WEB_PORT:-8088}:8080"
+    volumes:
+      - news-media:/data/media
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/healthz', timeout=5)"]
       interval: 30s
@@ -40,6 +42,8 @@ services:
     restart: unless-stopped
     command: ["python", "-m", "app.worker"]
     env_file: .env
+    volumes:
+      - news-media:/data/media
     environment:
       DATABASE_URL: postgresql://news:${POSTGRES_PASSWORD}@db:5432/news
     depends_on:
@@ -48,3 +52,4 @@ services:
 
 volumes:
   news-db:
+  news-media:
