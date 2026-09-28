@@ -158,15 +158,21 @@ def make_digest(day: date | None = None, llm=None, audio: bool | None = None, fo
     day = day or yesterday()
     want_audio = settings.podcast_enabled if audio is None else audio
     row = existing(day)
-    have_summary = bool(row and row["status"] == "ok" and row["summary"])
+    # A summary written before its day was over (say, a manual run at lunchtime) is provisional.
+    # Once the day has ended, the next run rewrites it with the whole day, once.
+    day_end = datetime.combine(day, time.min, ZoneInfo(settings.timezone)) + timedelta(days=1)
+    provisional = bool(row and row["created_at"] < day_end and datetime.now(ZoneInfo(settings.timezone)) >= day_end)
+    have_summary = bool(row and row["status"] == "ok" and row["summary"]) and not provisional
     have_audio = bool(row and row["audio_file"])
     have_script = bool(row and row["script"])
     redo_summary = force or not have_summary
-    redo_audio = want_audio and (force or audio_only or not have_audio)
+    redo_audio = want_audio and (force or audio_only or redo_summary or not have_audio)  # new summary, new audio
     if audio_only:
         redo_summary = not have_summary
 
-    plan = {"day": str(day), "summary": "write" if redo_summary else "keep",
+    plan = {"day": str(day),
+            "summary": ("rewrite: it was written before the day was over" if redo_summary and provisional
+                        else "write" if redo_summary else "keep"),
             "audio": ("record" if redo_audio else "keep" if have_audio else "off"),
             "script": ("reuse saved" if redo_audio and have_script and not (force or new_script or redo_summary) else
                        "write" if redo_audio else "-")}
@@ -179,7 +185,9 @@ def make_digest(day: date | None = None, llm=None, audio: bool | None = None, fo
                      "tts_chars_this_month": _chars_this_month()})
         return {"dry_run": True, **plan}
     if not redo_summary and not redo_audio:
-        return {**plan, "skipped": "already done; pass --force to redo it (that costs a Claude call and audio)"}
+        note = ("already done; pass --force to redo it (that costs a Claude call and audio)" if row["created_at"] >= day_end
+                else "written today, so it's provisional; it will be rewritten with the whole day after midnight")
+        return {**plan, "skipped": note}
 
     llm = llm or get_llm()
     result = {**plan}

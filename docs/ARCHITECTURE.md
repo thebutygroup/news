@@ -245,7 +245,9 @@ Nothing that costs money reruns by accident.
   within `SCAN_COOLDOWN_MINUTES` (30) of the last good scan; add `--force` to override. The merge
   pass only calls Claude when the scan actually posted something new.
 - **Daily summary:** `python -m app.digest DAY` only does what's missing. A day with a summary
-  keeps it. Missing audio is re-recorded from the saved script, so a failed recording doesn't pay
+  keeps it, unless it was written before the day was over (a manual run for "today so far"); that
+  one is rewritten once, with the whole day, by the next run after midnight. Missing audio is
+  re-recorded from the saved script, so a failed recording doesn't pay
   for Sonnet or the script again. A finished day is left alone.
   - `--dry-run` shows what would happen and the estimated text-to-speech characters, and spends nothing.
   - `--audio-only` re-records audio from the saved script.

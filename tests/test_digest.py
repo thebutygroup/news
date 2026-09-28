@@ -110,3 +110,34 @@ def test_elevenlabs_request_shape(monkeypatch):
     assert seen[0].headers["xi-api-key"] == "k"
     assert seen[0].url.path.endswith(settings.elevenlabs_voice_a) and seen[1].url.path.endswith(settings.elevenlabs_voice_b)
     assert b'"model_id"' in seen[0].content
+
+
+def test_a_summary_written_mid_day_is_redone_once_the_day_is_over(db, tmp_path, monkeypatch):
+    from datetime import datetime, timedelta
+    from zoneinfo import ZoneInfo
+
+    from app import digest
+    from app.config import settings
+    from app.db import conn
+    from app.pipeline.fake_llm import FakeLLM
+
+    monkeypatch.setattr(settings, "podcast_tts", "fake")
+    monkeypatch.setattr(settings, "media_dir", tmp_path)
+    monkeypatch.setattr("app.digest.fetch_full_text", lambda stories: None)
+    tz = ZoneInfo(settings.timezone)
+    day = datetime(2026, 3, 12, tzinfo=tz).date()
+    noon = datetime(2026, 3, 12, 12, 0, tzinfo=tz)
+    with conn() as c:
+        c.execute("""insert into posts (url, canonical_url, title, summary, source_name, importance, feed_at)
+                     values ('https://m.example/1', 'https://m.example/1', 'Midday story', 'S.', 'Wire', 3, %s)""", (noon,))
+    digest.make_digest(day, FakeLLM())
+    with conn() as c:  # pretend that run happened at lunchtime on the day itself
+        c.execute("update episodes set created_at = %s where day = %s", (noon + timedelta(hours=1), day))
+    llm = FakeLLM()
+    redo = digest.make_digest(day, llm)
+    assert redo["summary"].startswith("rewrite") and llm.usage["calls"] == 2
+    llm = FakeLLM()
+    assert "already done" in digest.make_digest(day, llm)["skipped"] and llm.usage["calls"] == 0
+    with conn() as c:
+        c.execute("delete from posts where url = 'https://m.example/1'")
+        c.execute("delete from episodes where day = %s", (day,))
