@@ -1,44 +1,37 @@
-"""Daily audio briefing: the day's top stories, read by two voices, published as a podcast feed.
+"""The audio version of each day's summary.
 
-    python -m app.podcast          make an episode now
-
-1. Pick the top stories posted since the last episode: one post per story, ranked by
-   importance, Bauer relevance and votes.
-2. Claude writes a two-host script from our own summaries. It is told never to add facts.
-3. Text to speech turns each turn into MP3, and the pieces are joined.
-4. The MP3 goes in MEDIA_DIR, a Docker volume. It is served at /podcast/<id>.mp3, listed in the
-   RSS feed at /podcast.xml, and shown as a player at the top of the feed.
+Claude (PODCAST_MODEL, Haiku by default) turns the written summary into a two-host script, text to
+speech reads it, and the MP3 goes in MEDIA_DIR (a Docker volume, never git). It plays from the day's
+banner on the site, and /podcast.xml is a feed any podcast app can subscribe to.
 
 Text to speech (PODCAST_TTS):
-  edge   Microsoft Edge's read-aloud voices through the open-source edge-tts library. Free, no key.
-         It uses an unofficial endpoint, so it can break or be switched off without notice.
-  azure  The same neural voices through Azure's official Speech service. Needs AZURE_SPEECH_KEY.
-  fake   Silence-free placeholder bytes, for tests.
+  edge        Microsoft Edge's neural voices via the open-source edge-tts library. Free, no key, but an
+              unofficial endpoint that can break without notice.
+  azure       The same voices through Azure's official Speech service. Needs AZURE_SPEECH_KEY.
+  elevenlabs  The most natural voices. Needs ELEVENLABS_API_KEY; pay per character.
+  fake        Placeholder bytes, for tests.
 """
 from __future__ import annotations
 
-import json
 import logging
 import string
-from datetime import timedelta, timezone
+from datetime import timezone
 from email.utils import format_datetime
 from pathlib import Path
 from xml.sax.saxutils import escape
 
 import httpx
 
-from .config import load_topics, settings
+from .config import settings
 from .db import conn
-from .normalize import utcnow
 
 log = logging.getLogger("news.podcast")
 PROMPT = Path(__file__).resolve().parent / "pipeline" / "prompts" / "podcast.md"
-MP3_BYTES_PER_SECOND = 6000  # audio-24khz-48kbitrate-mono-mp3
+BYTES_PER_SECOND = {"edge": 6000, "azure": 6000, "elevenlabs": 16000, "fake": 6000}
 
 SCRIPT_SCHEMA = {
     "type": "object",
     "properties": {
-        "title": {"type": "string"},
         "segments": {
             "type": "array",
             "items": {
@@ -48,58 +41,35 @@ SCRIPT_SCHEMA = {
             },
         },
     },
-    "required": ["title", "segments"],
+    "required": ["segments"],
 }
 
 
-# -- 1. pick stories ----------------------------------------------------------
-def pick_stories(limit: int | None = None) -> list[dict]:
-    with conn() as c:
-        last = c.execute("select max(created_at) as t from episodes where status = 'ok'").fetchone()["t"]
-        since = last or (utcnow() - timedelta(hours=24))
-        return c.execute(
-            """select * from (
-                 select distinct on (coalesce(p.story_id, -p.id)) p.id, p.title, p.summary, p.details, p.delta, p.url,
-                        p.source_name, p.importance, p.lens_score, p.feed_at,
-                        (select count(*) from coverage cv where cv.story_id = p.story_id) as outlets,
-                        (select count(*) from votes v where v.post_id = p.id) as votes
-                 from posts p
-                 where not p.hidden and p.posted_at > %s
-                   and not exists (select 1 from feedback f where f.post_id = p.id)
-                 order by coalesce(p.story_id, -p.id), p.importance desc, p.feed_at desc
-               ) s
-               order by importance * 3 + lens_score + votes desc, feed_at desc
-               limit %s""",
-            (since, limit or settings.podcast_stories),
-        ).fetchall()
-
-
-# -- 2. script ----------------------------------------------------------------
-def write_script(llm, stories: list[dict]) -> dict:
-    topics = load_topics()
-    lens = topics[0].lens.strip() if topics else ""
-    today = utcnow().strftime("%A %d %B %Y")
+def write_script(llm, day_label: str, digest: dict, stories: list[dict]) -> list[dict]:
     system = string.Template(PROMPT.read_text()).safe_substitute(
-        host_a=settings.podcast_host_a, host_b=settings.podcast_host_b, lens=lens,
-        words=str(settings.podcast_words), today=today)
+        host_a=settings.podcast_host_a, host_b=settings.podcast_host_b, words=str(settings.podcast_words), day=day_label)
+    cited = {i for p in digest["paragraphs"] for i in p.get("post_ids", [])}
     result = llm.structured(
         model=settings.podcast_model, system=system, tool_name="podcast_script", schema=SCRIPT_SCHEMA,
-        payload={"today": today, "hosts": [settings.podcast_host_a, settings.podcast_host_b],
+        payload={"day": day_label, "hosts": [settings.podcast_host_a, settings.podcast_host_b],
+                 "headline": digest["headline"], "summary": [p["text"] for p in digest["paragraphs"]],
                  "stories": [{"headline": s["title"], "source": s["source_name"], "summary": s["summary"],
-                              "details": s["details"], "new": s["delta"], "other_outlets": s["outlets"], "importance": s["importance"]}
-                             for s in stories]},
+                              "details": s["details"]} for s in stories if s["id"] in cited]},
     )
     hosts = {settings.podcast_host_a, settings.podcast_host_b}
     segments = [{"speaker": seg["speaker"] if seg.get("speaker") in hosts else settings.podcast_host_a,
                  "text": seg["text"].strip()} for seg in result.get("segments", []) if seg.get("text", "").strip()]
     if not segments:
         raise RuntimeError("the script came back empty")
-    return {"title": (result.get("title") or f"Briefing for {today}").strip()[:120], "segments": segments}
+    return segments
 
 
-# -- 3. text to speech --------------------------------------------------------
+# -- text to speech -------------------------------------------------------------
 def _voice(speaker: str) -> str:
-    return settings.podcast_voice_b if speaker == settings.podcast_host_b else settings.podcast_voice_a
+    b = speaker == settings.podcast_host_b
+    if settings.podcast_tts == "elevenlabs":
+        return settings.elevenlabs_voice_b if b else settings.elevenlabs_voice_a
+    return settings.podcast_voice_b if b else settings.podcast_voice_a
 
 
 def _edge(text: str, voice: str) -> bytes:
@@ -115,7 +85,7 @@ def _edge(text: str, voice: str) -> bytes:
 def _azure(text: str, voice: str, client: httpx.Client) -> bytes:
     if not settings.azure_speech_key:
         raise RuntimeError("PODCAST_TTS=azure needs AZURE_SPEECH_KEY")
-    ssml = (f"<speak version='1.0' xml:lang='en-GB'><voice name='{escape(voice)}'>{escape(text)}</voice></speak>")
+    ssml = f"<speak version='1.0' xml:lang='en-GB'><voice name='{escape(voice)}'>{escape(text)}</voice></speak>"
     r = client.post(
         f"https://{settings.azure_speech_region}.tts.speech.microsoft.com/cognitiveservices/v1",
         content=ssml.encode(),
@@ -126,57 +96,55 @@ def _azure(text: str, voice: str, client: httpx.Client) -> bytes:
     return r.content
 
 
-def synthesize(segments: list[dict]) -> bytes:
-    """One MP3 per turn, joined end to end. MP3 is a stream of frames, so same-format files concatenate cleanly."""
+def _elevenlabs(text: str, voice: str, client: httpx.Client) -> bytes:
+    if not settings.elevenlabs_api_key:
+        raise RuntimeError("PODCAST_TTS=elevenlabs needs ELEVENLABS_API_KEY")
+    r = client.post(
+        f"https://api.elevenlabs.io/v1/text-to-speech/{voice}",
+        params={"output_format": "mp3_44100_128"},
+        headers={"xi-api-key": settings.elevenlabs_api_key, "Accept": "audio/mpeg"},
+        json={"text": text, "model_id": settings.elevenlabs_model},
+    )
+    if r.status_code >= 400:
+        raise RuntimeError(f"ElevenLabs {r.status_code}: {r.text[:300]}")
+    return r.content
+
+
+def synthesize(segments: list[dict], client: httpx.Client | None = None) -> bytes:
+    """One MP3 per turn, joined end to end. Same-format MP3s are frame streams, so they concatenate cleanly."""
     mode = settings.podcast_tts
-    parts: list[bytes] = []
-    with httpx.Client(timeout=60) as client:
+    own = client is None
+    client = client or httpx.Client(timeout=120)
+    try:
+        parts = []
         for seg in segments:
             if mode == "fake":
                 parts.append(b"\xff\xfb" + seg["text"].encode()[:60])
             elif mode == "azure":
                 parts.append(_azure(seg["text"], _voice(seg["speaker"]), client))
+            elif mode == "elevenlabs":
+                parts.append(_elevenlabs(seg["text"], _voice(seg["speaker"]), client))
             else:
                 parts.append(_edge(seg["text"], _voice(seg["speaker"])))
-    return b"".join(parts)
+        return b"".join(parts)
+    finally:
+        if own:
+            client.close()
 
 
-# -- 4. publish ---------------------------------------------------------------
-def make_episode(llm=None) -> dict:
-    from .pipeline.llm import get_llm
-
-    stories = pick_stories()
-    if not stories:
-        log.info("no new stories since the last episode, skipping")
-        return {"skipped": "no new stories"}
-    llm = llm or get_llm()
-    notes = "\n".join(f"{i}. {s['title']} ({s['source_name'] or 'source'}): {s['url']}" for i, s in enumerate(stories, 1))
+def save_audio(episode_id: int, audio: bytes) -> None:
+    settings.media_dir.mkdir(parents=True, exist_ok=True)
+    name = f"briefing-{episode_id}.mp3"
+    (settings.media_dir / name).write_bytes(audio)
+    seconds = len(audio) // BYTES_PER_SECOND.get(settings.podcast_tts, 6000)
     with conn() as c:
-        ep_id = c.execute("insert into episodes (title, script, post_ids, notes, status) values ('(in progress)', '[]', %s, %s, 'error') returning id",
-                          ([s["id"] for s in stories], notes)).fetchone()["id"]
-    try:
-        script = write_script(llm, stories)
-        audio = synthesize(script["segments"])
-        settings.media_dir.mkdir(parents=True, exist_ok=True)
-        name = f"briefing-{ep_id}.mp3"
-        (settings.media_dir / name).write_bytes(audio)
-        with conn() as c:
-            c.execute("""update episodes set title = %s, script = %s, audio_file = %s, bytes = %s, duration_seconds = %s,
-                         status = 'ok', error = null where id = %s""",
-                      (script["title"], json.dumps(script["segments"]), name, len(audio),
-                       len(audio) // MP3_BYTES_PER_SECOND, ep_id))
-        prune()
-        log.info("episode %s: %s (%d stories, %d KB)", ep_id, script["title"], len(stories), len(audio) // 1024)
-        return {"id": ep_id, "title": script["title"], "stories": len(stories), "bytes": len(audio)}
-    except Exception as exc:  # noqa: BLE001 - record the failure, keep the worker alive
-        log.exception("episode failed")
-        with conn() as c:
-            c.execute("update episodes set error = %s where id = %s", (str(exc)[:1000], ep_id))
-        return {"id": ep_id, "error": str(exc)}
+        c.execute("update episodes set audio_file = %s, bytes = %s, duration_seconds = %s, audio_error = null where id = %s",
+                  (name, len(audio), seconds, episode_id))
+    prune()
 
 
 def prune() -> None:
-    """Keep the newest PODCAST_KEEP episodes' audio; older rows stay, their files go."""
+    """Keep the newest PODCAST_KEEP episodes' audio. Written summaries are kept forever."""
     with conn() as c:
         old = c.execute("""select id, audio_file from episodes where audio_file is not null and id not in
                            (select id from episodes where audio_file is not null order by id desc limit %s)""",
@@ -186,22 +154,16 @@ def prune() -> None:
             c.execute("update episodes set audio_file = null where id = %s", (row["id"],))
 
 
-def latest() -> dict | None:
-    with conn() as c:
-        return c.execute("""select id, title, created_at, duration_seconds, bytes from episodes
-                            where status = 'ok' and audio_file is not null order by id desc limit 1""").fetchone()
-
-
 def rss() -> str:
     base = settings.public_base_url
     with conn() as c:
         eps = c.execute("""select * from episodes where status = 'ok' and audio_file is not null
-                           order by id desc limit 50""").fetchall()
+                           order by coalesce(day, created_at::date) desc, id desc limit 50""").fetchall()
     items = []
     for e in eps:
         mins, secs = divmod(e["duration_seconds"] or 0, 60)
         items.append(f"""    <item>
-      <title>{escape(e['title'])}</title>
+      <title>{escape(e['headline'] or e['title'])}</title>
       <description>{escape(e['notes'])}</description>
       <enclosure url="{base}/podcast/{e['id']}.mp3" length="{e['bytes'] or 0}" type="audio/mpeg"/>
       <guid isPermaLink="false">news-briefing-{e['id']}</guid>
@@ -211,9 +173,9 @@ def rss() -> str:
     return f"""<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0" xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd">
   <channel>
-    <title>News daily briefing</title>
+    <title>News daily summary</title>
     <link>{base}/</link>
-    <description>The day's top AI stories from {escape(base)}, read aloud.</description>
+    <description>Each day's AI news from {escape(base)}, summarised and read aloud.</description>
     <language>en-gb</language>
     <itunes:author>News</itunes:author>
     <itunes:explicit>false</itunes:explicit>
@@ -222,11 +184,3 @@ def rss() -> str:
   </channel>
 </rss>
 """
-
-
-if __name__ == "__main__":
-    from .seed import bootstrap
-
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
-    bootstrap()
-    print(make_episode())

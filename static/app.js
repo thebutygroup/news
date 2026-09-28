@@ -15,6 +15,7 @@ const state = {
   loading: false,
   unknown: [],
   collapsed: new Set(),
+  digests: {},
 };
 
 // ---- tiny DOM helper ---------------------------------------------------
@@ -281,15 +282,6 @@ function renderFeed() {
     feed.append(h("p", { class: "notice" },
       `There is no tag called ${state.unknown.map((t) => `#${t}`).join(", ")}, so it was ignored.`));
   }
-  if (state.briefing && !(state.include.length || state.exclude.length || state.q)) {
-    const b = state.briefing;
-    feed.append(h("section", { class: "briefing", "aria-label": "Daily audio briefing" },
-      h("div", { class: "briefing-head" },
-        h("strong", {}, "Daily briefing"),
-        h("span", {}, `${b.title}${b.duration_seconds ? `, ${Math.max(1, Math.round(b.duration_seconds / 60))} min` : ""}`),
-        h("a", { href: "/podcast.xml", title: "Add this URL to your podcast app" }, "Podcast feed")),
-      h("audio", { controls: true, preload: "none", src: b.url })));
-  }
   const filtered = state.include.length || state.exclude.length || state.q;
   if (!state.posts.length) {
     feed.append(filtered
@@ -305,26 +297,80 @@ function renderFeed() {
     const open = !state.collapsed.has(key);
     const listId = `day-${key}`;
     const rel = relativeDay(key);
-    const poster = h("button", {
-      class: "day-poster", "aria-expanded": String(open), "aria-controls": listId,
-      onClick: () => {
-        if (state.collapsed.has(key)) state.collapsed.delete(key); else state.collapsed.add(key);
-        const nowOpen = !state.collapsed.has(key);
-        poster.setAttribute("aria-expanded", String(nowOpen));
-        document.getElementById(listId).hidden = !nowOpen;
-      },
-    },
-      h("span", { class: "day-name" }, dayPosterName(key)),
-      h("span", { class: "day-meta" },
-        rel ? h("span", {}, rel) : null,
-        h("span", {}, `${posts.length} ${posts.length === 1 ? "post" : "posts"}`),
-        h("span", { class: "chev", "aria-hidden": "true" }, "▾")));
+    const digest = state.digests[key];
+    const setOpen = (nowOpen) => {
+      if (nowOpen) state.collapsed.delete(key); else state.collapsed.add(key);
+      nameBtn.setAttribute("aria-expanded", String(nowOpen));
+      chevBtn.setAttribute("aria-expanded", String(nowOpen));
+      document.getElementById(listId).hidden = !nowOpen;
+    };
+    const nameBtn = h("button", { class: "day-name", "aria-expanded": String(open), "aria-controls": listId,
+      onClick: () => setOpen(state.collapsed.has(key)) }, dayPosterName(key));
+    const chevBtn = h("button", { class: "chev", "aria-expanded": String(open), "aria-controls": listId,
+      "aria-label": `Show or hide ${dayPosterName(key)}`, onClick: () => setOpen(state.collapsed.has(key)) }, "▾");
+    const panel = digest ? digestPanel(digest) : null;
+    const poster = h("div", { class: "day-poster" },
+      nameBtn,
+      h("div", { class: "day-right" },
+        digest ? h("span", { class: "day-controls" },
+          h("button", { class: "day-btn", "aria-expanded": "false", onClick: (e) => {
+            panel.hidden = !panel.hidden;
+            e.currentTarget.setAttribute("aria-expanded", String(!panel.hidden));
+            e.currentTarget.textContent = panel.hidden ? "Summary" : "Hide summary";
+          } }, "Summary"),
+          digest.audio_url ? playButton(digest) : null) : null,
+        h("span", { class: "day-meta" },
+          rel ? h("span", {}, rel) : null,
+          h("span", {}, `${posts.length} ${posts.length === 1 ? "post" : "posts"}`),
+          chevBtn)));
     const list = h("ol", { class: "day-posts", id: listId, hidden: !open }, posts.map(renderPost));
-    feed.append(h("section", { class: "day", "aria-label": dayPosterName(key) }, h("h2", { class: "visually-hidden" }, dayPosterName(key)), poster, list));
+    feed.append(h("section", { class: "day", "aria-label": dayPosterName(key) },
+      ...kids(h("h2", { class: "visually-hidden" }, dayPosterName(key)), poster, panel, list)));
   }
   if (state.next) {
     feed.append(h("button", { class: "btn quiet more", onClick: () => load(false) }, "Show older posts"));
   }
+}
+
+// One shared player: pressing play on one day stops any other.
+const player = { audio: new Audio(), button: null };
+player.audio.preload = "none";
+player.audio.addEventListener("ended", () => setPlayLabel(player.button, false));
+player.audio.addEventListener("pause", () => setPlayLabel(player.button, false));
+player.audio.addEventListener("play", () => setPlayLabel(player.button, true));
+
+function setPlayLabel(btn, playing) {
+  if (!btn) return;
+  btn.textContent = playing ? "❚❚ Pause" : `▶ Listen${btn.dataset.mins ? `, ${btn.dataset.mins} min` : ""}`;
+  btn.setAttribute("aria-pressed", String(playing));
+}
+
+function playButton(digest) {
+  const mins = digest.duration_seconds ? Math.max(1, Math.round(digest.duration_seconds / 60)) : "";
+  const btn = h("button", { class: "day-btn", "aria-pressed": "false", "data-mins": String(mins),
+    onClick: () => {
+      const src = new URL(digest.audio_url, location.href).href;
+      if (player.audio.src === src && !player.audio.paused) { player.audio.pause(); return; }
+      if (player.audio.src !== src) {
+        setPlayLabel(player.button, false);
+        player.audio.src = src;
+      }
+      player.button = btn;
+      player.audio.play().catch((err) => alert(`Couldn't play: ${err.message}`));
+    } });
+  setPlayLabel(btn, false);
+  return btn;
+}
+
+function digestPanel(d) {
+  const byId = Object.fromEntries((d.sources || []).map((s) => [s.id, s]));
+  return h("div", { class: "digest", hidden: true },
+    h("p", { class: "digest-head" }, d.headline),
+    (d.paragraphs || []).map((para) => h("p", {}, para.text, ...(para.post_ids || []).filter((id) => byId[id]).map((id) =>
+      [" ", h("a", { class: "digest-src", href: safeUrl(byId[id].url), target: "_blank", rel: "noopener noreferrer",
+        title: byId[id].title }, byId[id].source || "source")]))),
+    h("p", { class: "digest-foot" }, "Written from the day's stories and their full articles. ",
+      h("a", { href: "/podcast.xml" }, "Podcast feed")));
 }
 
 const STAGE_TEXT = { proposed: "Proposed", passed: "Passed", in_force: "In force", enforcement: "Enforcement", guidance: "Guidance" };
@@ -573,7 +619,8 @@ async function init() {
   renderFilters();
   const [me, meta] = await Promise.all([api("/api/me").catch(() => ({})), api("/api/meta").catch(() => ({}))]);
   state.me = me || { email: null };
-  state.briefing = await api("/api/podcast/latest").catch(() => null);
+  const digests = await api("/api/digests").catch(() => []);
+  state.digests = Object.fromEntries((digests || []).map((d) => [d.day, d]));
   state.meta = { ...state.meta, ...(meta || {}) };
   renderMe();
   renderFooter();

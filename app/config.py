@@ -66,16 +66,25 @@ class Settings:
     org_sweep_per_run: int = field(default_factory=lambda: _int("ORG_SWEEP_PER_RUN", 8))
     channel_discovery_per_run: int = field(default_factory=lambda: _int("CHANNEL_DISCOVERY_PER_RUN", 5))
 
-    # Daily audio briefing
+    # Daily summary (written) and its audio version
+    digest_enabled: bool = field(default_factory=lambda: _env("DIGEST_ENABLED", "1") == "1")
+    digest_cron: str = field(default_factory=lambda: _env("DIGEST_CRON", "30 5 * * *"))
+    digest_model: str = field(default_factory=lambda: _env("DIGEST_MODEL", "claude-sonnet-5"))
+    digest_words: int = field(default_factory=lambda: _int("DIGEST_WORDS", 300))
+    digest_max_words: int = field(default_factory=lambda: _int("DIGEST_MAX_WORDS", 450))
+    digest_fulltext_stories: int = field(default_factory=lambda: _int("DIGEST_FULLTEXT_STORIES", 15))
+    digest_fulltext_chars: int = field(default_factory=lambda: _int("DIGEST_FULLTEXT_CHARS", 8000))
     podcast_enabled: bool = field(default_factory=lambda: _env("PODCAST_ENABLED", "1") == "1")
-    podcast_cron: str = field(default_factory=lambda: _env("PODCAST_CRON", "30 5 * * *"))
     podcast_model: str = field(default_factory=lambda: _env("PODCAST_MODEL", "claude-haiku-4-5-20251001"))
-    podcast_tts: str = field(default_factory=lambda: _env("PODCAST_TTS", "edge"))  # edge | azure | fake
+    podcast_tts: str = field(default_factory=lambda: _env("PODCAST_TTS", "edge"))  # edge | azure | elevenlabs | fake
+    elevenlabs_api_key: str | None = field(default_factory=lambda: _env("ELEVENLABS_API_KEY"))
+    elevenlabs_model: str = field(default_factory=lambda: _env("ELEVENLABS_MODEL", "eleven_multilingual_v2"))
+    elevenlabs_voice_a: str = field(default_factory=lambda: _env("ELEVENLABS_VOICE_A", "JBFqnCBsd6RMkjVDRZzb"))
+    elevenlabs_voice_b: str = field(default_factory=lambda: _env("ELEVENLABS_VOICE_B", "Xb7hH8MSUJpSbSDYk0k2"))
     podcast_host_a: str = field(default_factory=lambda: _env("PODCAST_HOST_A", "Alex"))
     podcast_host_b: str = field(default_factory=lambda: _env("PODCAST_HOST_B", "Sam"))
     podcast_voice_a: str = field(default_factory=lambda: _env("PODCAST_VOICE_A", "en-GB-RyanNeural"))
     podcast_voice_b: str = field(default_factory=lambda: _env("PODCAST_VOICE_B", "en-GB-SoniaNeural"))
-    podcast_stories: int = field(default_factory=lambda: _int("PODCAST_STORIES", 8))
     podcast_words: int = field(default_factory=lambda: _int("PODCAST_WORDS", 800))
     podcast_keep: int = field(default_factory=lambda: _int("PODCAST_KEEP", 30))
     azure_speech_key: str | None = field(default_factory=lambda: _env("AZURE_SPEECH_KEY"))

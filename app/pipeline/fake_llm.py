@@ -41,13 +41,17 @@ class FakeLLM:
             return self._cluster(payload)
         if tool_name == "merge_results":
             return self._merge(payload)
+        if tool_name == "digest_summary":
+            top = payload["stories"][:4]
+            return {"headline": top[0]["headline"][:100],
+                    "paragraphs": [{"text": f"{s['source']}: {s['summary']}", "post_ids": [s["id"]]} for s in top]}
         if tool_name == "podcast_script":
             a, b = payload["hosts"]
-            segs = [{"speaker": a, "text": f"It's {payload['today']}. Here are {len(payload['stories'])} stories."}]
-            for i, s in enumerate(payload["stories"]):
-                segs.append({"speaker": b if i % 2 else a, "text": f"{s['source']}: {s['headline']}. {s['summary']}"})
-            segs.append({"speaker": b, "text": "That's the briefing."})
-            return {"title": payload["stories"][0]["headline"][:80], "segments": segs}
+            segs = [{"speaker": a, "text": f"It's {payload['day']}. {payload['headline']}."}]
+            for i, text in enumerate(payload["summary"]):
+                segs.append({"speaker": b if i % 2 == 0 else a, "text": text})
+            segs.append({"speaker": b, "text": "That's the day."})
+            return {"segments": segs}
         raise ValueError(tool_name)
 
     def search_and_report(self, *, model, system, prompt, schema, max_searches):

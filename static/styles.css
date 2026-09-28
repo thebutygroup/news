@@ -153,26 +153,37 @@ main { max-width: var(--column); margin: 0 auto; padding: 0 0 4rem; }
 .empty h2 { font: 800 var(--step-2) / 1.1 var(--display); margin: 0 0 0.5rem; }
 
 .day { margin-top: 1.25rem; }
-.briefing { margin: 1rem 1rem 0; padding: 0.75rem 1rem; background: var(--surface); border-left: 4px solid var(--poster); }
-.briefing-head { display: flex; flex-wrap: wrap; gap: 0.25rem 0.75rem; align-items: baseline; font-size: var(--step--1); }
-.briefing-head a { margin-left: auto; }
-.briefing audio { width: 100%; margin-top: 0.5rem; }
 .day-poster {
-  display: flex; align-items: flex-end; justify-content: space-between; gap: 1rem;
+  display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 0.25rem 1rem;
   width: 100%;
   padding: 0.5rem 1rem 0.375rem;
-  border: 0;
   background: var(--poster); color: var(--poster-ink);
-  text-align: left; cursor: pointer;
 }
 .day-name {
+  border: 0; background: none; padding: 0; cursor: pointer; color: inherit; text-align: left;
   white-space: nowrap;
   font: 800 var(--step-5) / 0.88 var(--display);
   letter-spacing: -0.005em;
 }
-.day-meta { white-space: nowrap; display: flex; align-items: center; gap: 0.5rem; padding-bottom: 0.375rem; font-weight: 700; }
-.day-meta .chev { display: inline-block; transition: transform 160ms ease; }
-.day-poster[aria-expanded="false"] .chev { transform: rotate(-90deg); }
+.day-right { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 0.375rem 0.75rem; padding-bottom: 0.3rem; }
+.day-controls { display: flex; gap: 0.375rem; }
+.day-btn {
+  border: 0; border-radius: 999px; cursor: pointer;
+  background: var(--poster-ink); color: var(--poster);
+  padding: 0.2rem 0.7rem; font-weight: 700; font-size: var(--step--1); white-space: nowrap;
+}
+.day-meta { white-space: nowrap; display: flex; align-items: center; gap: 0.5rem; font-weight: 700; }
+.day-meta .chev {
+  border: 0; background: none; color: inherit; cursor: pointer; padding: 0 0.1rem; font-size: 1rem;
+  transition: transform 160ms ease;
+}
+.day-meta .chev[aria-expanded="false"] { transform: rotate(-90deg); }
+.digest { background: var(--surface); padding: 0.75rem 1rem 0.5rem; border-bottom: 3px solid var(--poster); }
+.digest[hidden] { display: none; }
+.digest p { margin: 0 0 0.6rem; max-width: 65ch; }
+.digest-head { font-weight: 700; }
+.digest-src { font-size: var(--step--1); white-space: nowrap; }
+.digest-foot { font-size: var(--step--1); color: var(--muted); }
 .day-posts { list-style: none; margin: 0; padding: 0; background: var(--surface); }
 .day-posts[hidden] { display: none; }
 

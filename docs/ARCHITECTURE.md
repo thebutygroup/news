@@ -214,23 +214,27 @@ Caps keep a scan bounded: `MAX_LLM_CALLS_PER_RUN`, `MAX_SEARCHES_PER_RUN`,
 `MAX_CANDIDATES_PER_RUN`, `X_MAX_READS_PER_RUN`. A run that hits a cap stops cleanly and says so
 on `/runs`.
 
-## Daily audio briefing
+## Daily summary and audio
 
-Every morning at 05:30 UK (`PODCAST_CRON`), after the 04:00 scan, the worker makes a short
-two-host audio briefing (`app/podcast.py`):
+Every morning at 05:30 UK (`DIGEST_CRON`), after the 04:00 scan has picked up the US evening's
+news, the worker writes a summary of the previous day (`app/digest.py`). It shows on that day's
+banner: **Summary** opens the write-up, **Listen** plays the audio.
 
-1. Pick the top `PODCAST_STORIES` stories posted since the last episode, one post per story,
-   ranked by importance, Bauer relevance and votes. Posts flagged "Not relevant" are skipped.
-2. Claude (`PODCAST_MODEL`, Haiku by default) writes the script from our own summaries, and is
-   told never to add facts.
-3. Text to speech (`PODCAST_TTS`) reads each turn and the MP3s are joined. `edge` is free but
-   uses an unofficial Microsoft endpoint that could stop working; `azure` is the same voices
-   through Azure's official Speech service.
-4. The MP3 is saved in the `news-media` Docker volume, never in git. It plays at the top of the
-   feed, and `/podcast.xml` is a podcast feed you can add to any podcast app. The newest 30
-   episodes keep their audio (`PODCAST_KEEP`).
+1. Gather every post filed on that day, one entry per story, most important first. Posts flagged
+   "Not relevant" are left out.
+2. Fetch the full article for the top `DIGEST_FULLTEXT_STORIES` (15) and extract its text, so the
+   summary is written from the whole story. The text is used for that one call and never stored.
+   Paywalled articles fall back to our summary and details.
+3. Claude (`DIGEST_MODEL`, Sonnet by default) writes about `DIGEST_WORDS` (300) words, never more
+   than `DIGEST_MAX_WORDS` (450): factual, one mention per story, and skipping anything the
+   previous two days' summaries covered unless there's major news. Each paragraph links to the
+   posts it draws on. There's no Bauer lens here.
+4. The audio (`PODCAST_ENABLED`): Haiku turns the summary into a two-host script, and text to
+   speech reads it. `PODCAST_TTS` is `edge` (free, unofficial endpoint), `azure` (official, same
+   voices) or `elevenlabs` (most natural, paid per character). MP3s live in the `news-media`
+   volume; `/podcast.xml` is a feed for any podcast app.
 
-Admins can make one on demand: `docker compose exec worker python -m app.podcast`.
+Rewrite any day's summary: `docker compose exec worker python -m app.digest 2026-09-24`.
 
 ## Where everything is stored
 
@@ -281,7 +285,7 @@ erDiagram
 | `coverage` | Another outlet's article about a story, folded under a post | Cluster | "N more sources" |
 | `tags`, `post_tags` | Tags and which posts carry them | Seed, curator, cluster, people | Feed filters, typeahead, relevance |
 | `votes`, `comments`, `feedback` | What the team did | Web | Feed, curator (feedback and votes) |
-| `episodes` | A daily audio briefing: script, stories used, show notes, audio file name | Podcast job | Player, `/podcast.xml` |
+| `episodes` | One day's summary: headline, paragraphs, cited posts, audio script, audio file | Daily summary job | Day banners, `/podcast.xml` |
 
 We store summaries, titles and links. We never store article text.
 

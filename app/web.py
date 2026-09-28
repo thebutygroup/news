@@ -174,19 +174,24 @@ def podcast_audio(episode_id: int):
     return FileResponse(path, media_type="audio/mpeg", headers={"Cache-Control": "public, max-age=86400"})
 
 
-@app.get("/api/podcast/latest")
-def podcast_latest():
-    from .podcast import latest
+@app.get("/api/digests")
+def digests(days: int = 60):
+    from .digest import recent
 
-    ep = latest()
-    return {**ep, "url": f"/podcast/{ep['id']}.mp3"} if ep else None
+    return recent(min(days, 365))
 
 
-@app.post("/api/podcast/generate")
-def podcast_generate(_admin: str = Depends(require_admin)):
-    from .podcast import make_episode
+@app.post("/api/digests/{day}")
+def regenerate_digest(day: str, _admin: str = Depends(require_admin)):
+    from datetime import date as _date
 
-    return make_episode()
+    from .digest import make_digest
+
+    try:
+        target = _date.fromisoformat(day)
+    except ValueError:
+        raise HTTPException(422, "Use a date like 2026-09-24")
+    return make_digest(target)
 
 
 @app.get("/healthz")
