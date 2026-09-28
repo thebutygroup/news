@@ -40,10 +40,11 @@ def check_requests() -> None:
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--once", action="store_true", help="run one scan and exit")
+    parser.add_argument("--force", action="store_true", help="with --once: ignore the cooldown since the last scan")
     args = parser.parse_args()
     bootstrap()
     if args.once:
-        print(run_scan("cli"))
+        print(run_scan("cli", force=args.force))
         return
     sched = BlockingScheduler(timezone=settings.timezone)
     sched.add_job(scheduled, CronTrigger.from_crontab(settings.scan_cron, timezone=settings.timezone),

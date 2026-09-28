@@ -182,7 +182,8 @@ def digests(days: int = 60):
 
 
 @app.post("/api/digests/{day}")
-def regenerate_digest(day: str, _admin: str = Depends(require_admin)):
+def regenerate_digest(day: str, force: bool = False, audio_only: bool = False, dry_run: bool = False,
+                      _admin: str = Depends(require_admin)):
     from datetime import date as _date
 
     from .digest import make_digest
@@ -191,7 +192,7 @@ def regenerate_digest(day: str, _admin: str = Depends(require_admin)):
         target = _date.fromisoformat(day)
     except ValueError:
         raise HTTPException(422, "Use a date like 2026-09-24")
-    return make_digest(target)
+    return make_digest(target, force=force, audio_only=audio_only, dry_run=dry_run)
 
 
 @app.get("/healthz")

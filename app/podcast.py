@@ -110,6 +110,35 @@ def _elevenlabs(text: str, voice: str, client: httpx.Client) -> bytes:
     return r.content
 
 
+PAID_TTS = {"elevenlabs", "azure"}
+
+
+def script_chars(segments: list[dict]) -> int:
+    return sum(len(s["text"]) for s in segments)
+
+
+def chars_this_month() -> int:
+    with conn() as c:
+        return c.execute(
+            """select coalesce(sum(tts_chars), 0) as n from episodes
+               where tts_provider = %s and created_at >= date_trunc('month', now())""",
+            (settings.podcast_tts,),
+        ).fetchone()["n"]
+
+
+def check_budget(segments: list[dict]) -> None:
+    """Refuse paid text to speech that would break the per-episode or monthly character limits."""
+    if settings.podcast_tts not in PAID_TTS:
+        return
+    n = script_chars(segments)
+    if n > settings.podcast_max_chars_per_episode:
+        raise RuntimeError(f"script is {n} characters, over PODCAST_MAX_CHARS_PER_EPISODE={settings.podcast_max_chars_per_episode}")
+    used = chars_this_month()
+    if used + n > settings.podcast_monthly_char_limit:
+        raise RuntimeError(f"{used} characters used this month; {n} more would pass PODCAST_MONTHLY_CHAR_LIMIT="
+                           f"{settings.podcast_monthly_char_limit}")
+
+
 def synthesize(segments: list[dict], client: httpx.Client | None = None) -> bytes:
     """One MP3 per turn, joined end to end. Same-format MP3s are frame streams, so they concatenate cleanly."""
     mode = settings.podcast_tts
@@ -132,14 +161,15 @@ def synthesize(segments: list[dict], client: httpx.Client | None = None) -> byte
             client.close()
 
 
-def save_audio(episode_id: int, audio: bytes) -> None:
+def save_audio(episode_id: int, audio: bytes, chars: int = 0) -> None:
     settings.media_dir.mkdir(parents=True, exist_ok=True)
     name = f"briefing-{episode_id}.mp3"
     (settings.media_dir / name).write_bytes(audio)
     seconds = len(audio) // BYTES_PER_SECOND.get(settings.podcast_tts, 6000)
     with conn() as c:
-        c.execute("update episodes set audio_file = %s, bytes = %s, duration_seconds = %s, audio_error = null where id = %s",
-                  (name, len(audio), seconds, episode_id))
+        c.execute("""update episodes set audio_file = %s, bytes = %s, duration_seconds = %s, audio_error = null,
+                     tts_provider = %s, tts_chars = %s where id = %s""",
+                  (name, len(audio), seconds, settings.podcast_tts, chars, episode_id))
     prune()
 
 

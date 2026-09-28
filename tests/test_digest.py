@@ -27,11 +27,32 @@ def test_daily_summary_end_to_end(db, tmp_path, monkeypatch):
     stories = digest.stories_for_day(day)
     assert len(stories) == 3 and stories[0]["title"] == "Story 0"
 
+    plan = digest.make_digest(day, FakeLLM(), dry_run=True)
+    assert plan["dry_run"] and plan["summary"] == "write" and plan["stories"] == 3
+
     result = digest.make_digest(day, FakeLLM())
     assert result["audio"] == "ok" and result["words"] > 0, result
     assert result["full_text"] >= 1, "top stories should have their article text"
-    again = digest.make_digest(day, FakeLLM(), audio=False)  # rerunning replaces, never duplicates
-    assert again["id"] == result["id"]
+
+    # Running the same day again does nothing and calls nothing.
+    llm = FakeLLM()
+    again = digest.make_digest(day, llm)
+    assert "already done" in again["skipped"] and llm.usage["calls"] == 0
+
+    # Re-recording audio reuses the saved script: no Claude calls at all.
+    llm = FakeLLM()
+    redo = digest.make_digest(day, llm, audio_only=True)
+    assert redo["audio"] == "ok" and redo["script"] == "reuse saved" and llm.usage["calls"] == 0
+
+    # --new-script rewrites only the script (one cheap call) and re-records.
+    llm = FakeLLM()
+    fresh = digest.make_digest(day, llm, new_script=True)
+    assert fresh["audio"] == "ok" and fresh["summary"] == "keep" and llm.usage["calls"] == 1
+
+    # --force redoes everything, on the same row.
+    llm = FakeLLM()
+    forced = digest.make_digest(day, llm, force=True)
+    assert forced["id"] == result["id"] and llm.usage["calls"] == 2  # summary + script
 
     from fastapi.testclient import TestClient
     from app.web import app
@@ -50,6 +71,24 @@ def test_daily_summary_end_to_end(db, tmp_path, monkeypatch):
     with conn() as c:
         c.execute("delete from posts where url like 'https://d.example/%%'")
         c.execute("delete from episodes where day = %s", (day,))
+
+
+def test_paid_voices_stop_at_the_monthly_limit(db, monkeypatch):
+    import pytest
+
+    from app import podcast
+    from app.config import settings
+
+    monkeypatch.setattr(settings, "podcast_tts", "elevenlabs")
+    monkeypatch.setattr(settings, "podcast_monthly_char_limit", 100)
+    with pytest.raises(RuntimeError, match="MONTHLY"):
+        podcast.check_budget([{"speaker": "Alex", "text": "x" * 150}])
+    monkeypatch.setattr(settings, "podcast_monthly_char_limit", 100000)
+    monkeypatch.setattr(settings, "podcast_max_chars_per_episode", 50)
+    with pytest.raises(RuntimeError, match="PER_EPISODE"):
+        podcast.check_budget([{"speaker": "Alex", "text": "x" * 60}])
+    monkeypatch.setattr(settings, "podcast_tts", "edge")
+    podcast.check_budget([{"speaker": "Alex", "text": "x" * 100000}])  # free voices aren't capped
 
 
 def test_elevenlabs_request_shape(monkeypatch):

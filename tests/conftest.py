@@ -25,6 +25,7 @@ os.environ.update({
     "REGISTRY_PATH": str(WORK / "registry.json"),
     "CHANNEL_DISCOVERY_PER_RUN": "0",
     "FETCH_WORKERS": "2",
+    "SCAN_COOLDOWN_MINUTES": "0",
 })
 
 

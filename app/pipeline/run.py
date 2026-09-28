@@ -116,7 +116,22 @@ def _source_upkeep(stats: dict) -> None:
         log.warning("channel discovery failed: %s", exc)
 
 
-def run_scan(trigger: str = "schedule") -> dict:
+def recent_scan_minutes() -> float | None:
+    with conn() as c:
+        row = c.execute("select extract(epoch from now() - max(finished_at)) / 60 as m from runs where status = 'ok'").fetchone()
+    return float(row["m"]) if row and row["m"] is not None else None
+
+
+def run_scan(trigger: str = "schedule", force: bool = False) -> dict:
+    """Scheduled scans always run. Manual ones (Scan now, --once) are refused within
+    SCAN_COOLDOWN_MINUTES of the last good scan unless forced, so testing can't pile up web searches."""
+    if trigger != "schedule" and not force:
+        mins = recent_scan_minutes()
+        if mins is not None and mins < settings.scan_cooldown_minutes:
+            msg = (f"last scan finished {mins:.0f} min ago; manual scans wait {settings.scan_cooldown_minutes} min. "
+                   "Use --force to override.")
+            log.info(msg)
+            return {"skipped": msg}
     with conn() as lock_conn:
         got = lock_conn.execute("select pg_try_advisory_lock(%s) as ok", (SCAN_LOCK,)).fetchone()["ok"]
         if not got:
@@ -154,7 +169,8 @@ def _run(trigger: str) -> dict:
             fill_missing_dates(kept, tstats)
             cluster_and_post(llm, topic, kept, tstats)
             stats[topic.slug] = tstats
-        merge_duplicate_stories(llm, stats)
+        if any(v.get("posts", 0) + v.get("follow_up_posts", 0) for v in stats.values() if isinstance(v, dict)):
+            merge_duplicate_stories(llm, stats)  # only worth a Claude call when something new was posted
         materialize_story_tags(stats)
         _source_upkeep(stats)
     except BudgetExceeded as exc:

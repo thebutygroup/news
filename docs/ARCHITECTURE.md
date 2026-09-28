@@ -236,6 +236,29 @@ banner: **Summary** opens the write-up, **Listen** plays the audio.
 
 Rewrite any day's summary: `docker compose exec worker python -m app.digest 2026-09-24`.
 
+## Cost guards
+
+Nothing that costs money reruns by accident.
+
+- **Scans:** an item is only ever curated once. Its URL is remembered, so rescanning the same
+  feeds costs nothing for items already seen. A manual scan ("Scan now" or `--once`) is refused
+  within `SCAN_COOLDOWN_MINUTES` (30) of the last good scan; add `--force` to override. The merge
+  pass only calls Claude when the scan actually posted something new.
+- **Daily summary:** `python -m app.digest DAY` only does what's missing. A day with a summary
+  keeps it. Missing audio is re-recorded from the saved script, so a failed recording doesn't pay
+  for Sonnet or the script again. A finished day is left alone.
+  - `--dry-run` shows what would happen and the estimated text-to-speech characters, and spends nothing.
+  - `--audio-only` re-records audio from the saved script.
+  - `--new-script` rewrites the audio script with Haiku (cheap) and re-records it, keeping the summary.
+  - `--force` rewrites everything and says so.
+- **Text to speech:** paid voices (ElevenLabs, Azure) stop at `PODCAST_MAX_CHARS_PER_EPISODE`
+  (6,000) and `PODCAST_MONTHLY_CHAR_LIMIT` (120,000). Usage is recorded per episode. When a limit
+  is hit, the written summary still publishes and the audio is skipped with the reason.
+- **Claude:** `MAX_LLM_CALLS_PER_RUN` caps every run. Set a monthly spend limit on the Anthropic
+  workspace as the backstop.
+- **The reset command** (truncating candidates) makes the next scan re-curate everything. Only
+  use it when you mean to pay for that.
+
 ## Where everything is stored
 
 ### Files (in the repo, edited by people)

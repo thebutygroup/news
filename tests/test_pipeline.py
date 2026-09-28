@@ -158,3 +158,15 @@ def test_links_to_private_addresses_are_not_fetched():
     assert not is_public_url("http://127.0.0.1/admin")
     assert not is_public_url("http://192.168.1.1/")
     assert not is_public_url("file:///etc/passwd")
+
+
+def test_manual_scans_wait_for_the_cooldown(db, monkeypatch):
+    from app.config import settings
+    from app.pipeline.run import run_scan
+
+    monkeypatch.setattr(settings, "scan_cooldown_minutes", 30)
+    assert run_scan("schedule")["status"] == "ok"  # makes sure a recent good scan exists
+    skipped = run_scan("manual:joe@example.com")
+    assert "skipped" in skipped and "--force" in skipped["skipped"]
+    assert run_scan("schedule").get("status") == "ok"  # the schedule is never blocked
+    assert run_scan("cli", force=True).get("status") == "ok"

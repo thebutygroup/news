@@ -4,6 +4,7 @@ You get every story from that day, most important first. Each has our headline, 
 
 # Rules
 
+- The summary covers one day, $day, and nothing else. Never call it a week or a weekly roundup.
 - Be factual and specific: who, what, the numbers, the dates. Every claim must come from the stories you were given. Never add outside knowledge, speculation or opinion.
 - Cover the day's genuinely important stories and skip minor ones. Group related stories into one paragraph.
 - Mention each story once. Skip stories that continue something from the previous days' summaries, unless there's a major new development; then say only what's new.
