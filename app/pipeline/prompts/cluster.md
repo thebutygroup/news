@@ -14,7 +14,7 @@ A story is one real-world event, never a theme.
 
 - `story`: an existing story id from `active_stories`, or `new:1`, `new:2` and so on for a new story. Items about the same new story share the same ref.
 - `new_information`: for an item joining an existing story, true only if it adds facts that are not already in that story's headline and recent updates, such as newly confirmed victims, a published root cause, a company response or a regulator stepping in. Rewrites and recaps are false. For the first item of a new story, true.
-- `delta`: when an item joins an existing story with `new_information` true, one sentence under 160 characters that states only what is new. Otherwise null.
+- `delta`: when an item joins an existing story with `new_information` true, the lead for this follow-up: one or two sentences, under 40 words, stating only the new facts, specifics first. It is shown in place of the item's summary, so it must make sense on its own, and it must not repeat the item's headline or anything already in the story's earlier updates. Otherwise null.
 
 # For each new story
 

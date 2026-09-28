@@ -30,3 +30,10 @@ def test_parse_tag_params():
     inc, exc = parse_tag_params(["ai", "-legislation", "security,-uk", "ai"])
     assert inc == ["ai", "security"]
     assert exc == ["legislation", "uk"]
+
+
+def test_word_caps():
+    from app.pipeline.curate import _words
+
+    assert _words("one two three", 5) == "one two three"
+    assert _words("one two three four", 2) == "one two…"

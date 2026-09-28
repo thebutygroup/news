@@ -133,7 +133,30 @@ def article_links(html: str, base_url: str, pattern: str | None = None) -> list[
     return out
 
 
+def is_public_url(url: str) -> bool:
+    """False for localhost, private, link-local and other non-internet addresses. Feeds and search
+    results are outside our control, so a link must not be able to point the worker at your
+    router or at other containers."""
+    import ipaddress
+    import socket
+
+    host = urlsplit(url).hostname
+    if not host or urlsplit(url).scheme not in ("http", "https"):
+        return False
+    try:
+        infos = socket.getaddrinfo(host, None)
+    except OSError:
+        return True  # can't resolve: the request itself will fail, nothing internal is reachable
+    for info in infos:
+        ip = ipaddress.ip_address(info[4][0])
+        if not ip.is_global:
+            return False
+    return True
+
+
 def page_metadata(client: httpx.Client, url: str) -> dict:
+    if not is_public_url(url):
+        return {}
     try:
         resp = client.get(url)
         resp.raise_for_status()

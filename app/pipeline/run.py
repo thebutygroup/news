@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 import logging
 import traceback
+from datetime import timedelta
 
 from ..config import load_topics, settings
 from ..db import SCAN_LOCK, conn
@@ -62,6 +63,45 @@ def _apply_cap(fresh: list[dict], stats: dict) -> list[dict]:
     return keep
 
 
+def fill_missing_dates(items: list[dict], stats: dict, client=None) -> None:
+    """Search results and some pages arrive without a publish date. For the ones we're keeping,
+    read the article's own metadata (article:published_time, <time>) so they land on the right day."""
+    from concurrent.futures import ThreadPoolExecutor
+
+    from ..sources.fetch import make_client, page_metadata
+
+    missing = [i for i in items if not i.get("published_at") and i["url"].startswith("http")][:40]
+    if not missing:
+        return
+    own = client is None
+    client = client or make_client()
+    try:
+        with ThreadPoolExecutor(max_workers=max(1, settings.fetch_workers)) as pool:
+            metas = list(pool.map(lambda i: page_metadata(client, i["url"]), missing))
+    finally:
+        if own:
+            client.close()
+    found = stale = 0
+    too_old = utcnow() - timedelta(days=7)
+    with conn() as c:
+        for item, meta in zip(missing, metas):
+            if meta.get("published") and meta["published"] <= utcnow():
+                item["published_at"] = meta["published"]
+                c.execute("update candidates set published_at = %s where id = %s", (item["published_at"], item["id"]))
+                found += 1
+                if item["published_at"] < too_old:
+                    # The curator kept it without knowing its age. Old news isn't breaking news.
+                    c.execute("update candidates set decision = 'rejected', reason = 'published over a week ago' where id = %s",
+                              (item["id"],))
+                    item["stale"] = True
+                    stale += 1
+    items[:] = [i for i in items if not i.get("stale")]
+    stats["publish_dates_found"] = found
+    stats["publish_dates_unknown"] = len(missing) - found
+    if stale:
+        stats["dropped_as_old"] = stale
+
+
 def _source_upkeep(stats: dict) -> None:
     """After posting: refresh which orgs matter, propose new ones, find channels for a few."""
     relevance.update_mentions()
@@ -111,6 +151,7 @@ def _run(trigger: str) -> dict:
                 tstats["discovery_error"] = str(exc)[:300]
             fresh = _apply_cap(_store_candidates(run_id, topic.slug, items, tstats), tstats)
             kept = curate(llm, topic, fresh, tstats)
+            fill_missing_dates(kept, tstats)
             cluster_and_post(llm, topic, kept, tstats)
             stats[topic.slug] = tstats
         merge_duplicate_stories(llm, stats)

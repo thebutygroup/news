@@ -16,8 +16,8 @@ from .config import settings
 from .db import conn
 
 POST_COLUMNS = """
-  p.id, p.story_id, p.url, p.title, p.summary, p.delta, p.source_name, p.content_type,
-  p.published_at, p.feed_at, p.importance, p.lens_score, p.legislation_stage, p.jurisdiction, p.posted_by,
+  p.id, p.story_id, p.url, p.title, p.summary, p.details, p.delta, p.source_name, p.content_type,
+  p.published_at, p.posted_at, p.published_estimated, p.feed_at, p.importance, p.lens_score, p.legislation_stage, p.jurisdiction, p.posted_by,
   s.headline as story_headline, s.article_count as story_article_count,
   (select count(*) from posts p2 where p2.story_id = p.story_id) as story_post_count,
   (select count(*) from votes v where v.post_id = p.id) as votes,

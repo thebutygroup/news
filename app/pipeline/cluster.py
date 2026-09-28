@@ -16,7 +16,7 @@ from pathlib import Path
 
 from ..config import Topic, settings
 from ..db import conn
-from ..normalize import slugify, title_tokens, utcnow
+from ..normalize import jaccard, slugify, title_tokens, utcnow
 from ..places import place_tag
 
 log = logging.getLogger("news.cluster")
@@ -153,21 +153,34 @@ def active_stories(items: list[dict]) -> list[dict]:
 
 
 def _feed_at(published):
+    """The feed groups posts by the day they were published. A date in the future is a source's
+    time-zone mistake, so it falls back to now, as does a missing date."""
     now = utcnow()
-    if published and published <= now and now - published <= timedelta(days=3):
-        return published
+    if published and published <= now + timedelta(minutes=5):
+        return min(published, now)
     return now
+
+
+def _details_for(item: dict, delta: str | None) -> str | None:
+    """A follow-up shows its "New:" line as the lead. Its own summary moves behind "more", unless
+    it mostly says the same thing as the new line."""
+    details = item.get("details")
+    if delta and item.get("summary") and jaccard(item["summary"], delta) < 0.5:
+        return " ".join(x for x in (item["summary"], details) if x)
+    return details
 
 
 def _insert_post(c, topic: Topic, item: dict, story_id: int, delta: str | None, story_tag_id: int | None) -> int | None:
     row = c.execute(
-        """insert into posts (story_id, url, canonical_url, title, summary, delta, source_name, content_type,
-                              published_at, feed_at, importance, lens_score, legislation_stage, jurisdiction)
-           values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        """insert into posts (story_id, url, canonical_url, title, summary, details, delta, source_name, content_type,
+                              published_at, feed_at, importance, lens_score, legislation_stage, jurisdiction,
+                              published_estimated)
+           values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
            on conflict (canonical_url) do nothing returning id""",
-        (story_id, item["url"], item["canonical_url"], item["title"], item["summary"], delta, item["source_name"],
+        (story_id, item["url"], item["canonical_url"], item["title"], item["summary"], _details_for(item, delta), delta,
+         item["source_name"],
          item["content_type"], item["published_at"], _feed_at(item["published_at"]), item["importance"],
-         item["lens_score"], item["legislation_stage"], item["jurisdiction"]),
+         item["lens_score"], item["legislation_stage"], item["jurisdiction"], item["published_at"] is None),
     ).fetchone()
     if not row:
         # Same URL already posted, most likely under another topic. Tag it with this topic too.
@@ -249,7 +262,7 @@ def _apply(topic: Topic, batch: list[dict], stories: list[dict], result: dict, s
                 story_tag_id = c.execute("select story_tag_id from stories where id = %s", (story_id,)).fetchone()["story_tag_id"]
                 for item, a in members:
                     if a.get("new_information") and (a.get("delta") or "").strip():
-                        post_id = _insert_post(c, topic, item, story_id, a["delta"].strip()[:300], story_tag_id)
+                        post_id = _insert_post(c, topic, item, story_id, a["delta"].strip()[:400], story_tag_id)
                         _mark(c, item, "post" if post_id else "coverage", post_id, "follow-up with new information")
                         stats["follow_up_posts" if post_id else "coverage"] = stats.get("follow_up_posts" if post_id else "coverage", 0) + 1
                     else:

@@ -202,6 +202,14 @@ create tags.
 | 7. Story tags | Stories with `STORY_TAG_THRESHOLD` articles (default 2) get their own tag, so any overlap is visible straight away. | `stories` | `tags`, `post_tags` | `app/pipeline/cluster.py` |
 | 8. Upkeep | Recount mentions, propose orgs, run channel discovery for a few new orgs. | `post_tags`, `orgs` | `orgs`, `sources` | `app/sources/relevance.py`, `app/sources/channels.py` |
 
+**Dates.** Every post is filed under the day it was published, not the day we found it. Feeds
+give a date for each entry. For search results and pages that don't, the scan reads the article's
+own metadata (`article:published_time`, `<time>`) before posting. If there's still no date, the
+post uses the time we found it and the feed says "found" next to the time. A post filed on an
+earlier day but only found in the last 24 hours shows a "Just found" badge, so late finds aren't
+missed. Freshness is still the priority: scans only look back `LOOKBACK_HOURS` (36), and the
+curator rejects anything more than three days old unless it has newly become significant.
+
 Caps keep a scan bounded: `MAX_LLM_CALLS_PER_RUN`, `MAX_SEARCHES_PER_RUN`,
 `MAX_CANDIDATES_PER_RUN`, `X_MAX_READS_PER_RUN`. A run that hits a cap stops cleanly and says so
 on `/runs`.

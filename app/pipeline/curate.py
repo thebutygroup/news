@@ -31,6 +31,7 @@ SCHEMA = {
                     "importance": {"type": "integer", "minimum": 1, "maximum": 5},
                     "lens_score": {"type": "integer", "minimum": 0, "maximum": 3},
                     "summary": {"type": "string"},
+                    "details": {"type": "string"},
                     "content_type": {"type": "string", "enum": CONTENT_TYPES},
                     "categories": {"type": "array", "items": {"type": "string"}},
                     "entities": {"type": "array", "items": {"type": "string"}},
@@ -45,6 +46,12 @@ SCHEMA = {
     },
     "required": ["results"],
 }
+
+
+def _words(text: str, limit: int) -> str:
+    """Hard cap as a safety net; the prompt asks for much less."""
+    words = (text or "").strip().split()
+    return " ".join(words) if len(words) <= limit else " ".join(words[:limit]).rstrip(",;:") + "…"
 
 
 def team_feedback(limit: int = 15) -> dict:
@@ -143,7 +150,8 @@ def curate(llm, topic: Topic, candidates: list[dict], stats: dict) -> list[dict]
                 cats = [s for s in (r.get("categories") or []) if s in allowed][:4]
                 enriched = {
                     **cand,
-                    "summary": (r.get("summary") or cand["excerpt"] or cand["title"]).strip()[:600],
+                    "summary": _words(r.get("summary") or cand["excerpt"] or cand["title"], 60),
+                    "details": _words(r.get("details") or "", 110) or None,
                     "importance": max(1, min(5, int(r.get("importance") or 2))),
                     "lens_score": max(0, min(3, int(r.get("lens_score") or 0))),
                     "content_type": r.get("content_type") if r.get("content_type") in CONTENT_TYPES else "article",

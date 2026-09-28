@@ -59,7 +59,7 @@ def pick_stories(limit: int | None = None) -> list[dict]:
         since = last or (utcnow() - timedelta(hours=24))
         return c.execute(
             """select * from (
-                 select distinct on (coalesce(p.story_id, -p.id)) p.id, p.title, p.summary, p.delta, p.url,
+                 select distinct on (coalesce(p.story_id, -p.id)) p.id, p.title, p.summary, p.details, p.delta, p.url,
                         p.source_name, p.importance, p.lens_score, p.feed_at,
                         (select count(*) from coverage cv where cv.story_id = p.story_id) as outlets,
                         (select count(*) from votes v where v.post_id = p.id) as votes
@@ -86,7 +86,7 @@ def write_script(llm, stories: list[dict]) -> dict:
         model=settings.podcast_model, system=system, tool_name="podcast_script", schema=SCRIPT_SCHEMA,
         payload={"today": today, "hosts": [settings.podcast_host_a, settings.podcast_host_b],
                  "stories": [{"headline": s["title"], "source": s["source_name"], "summary": s["summary"],
-                              "new": s["delta"], "other_outlets": s["outlets"], "importance": s["importance"]}
+                              "details": s["details"], "new": s["delta"], "other_outlets": s["outlets"], "importance": s["importance"]}
                              for s in stories]},
     )
     hosts = {settings.podcast_host_a, settings.podcast_host_b}

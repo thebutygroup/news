@@ -330,6 +330,13 @@ function renderFeed() {
 const STAGE_TEXT = { proposed: "Proposed", passed: "Passed", in_force: "In force", enforcement: "Enforcement", guidance: "Guidance" };
 const TYPE_TEXT = { official: "Official", podcast: "Podcast", video: "Video", paper: "Paper", repo: "Repo", discussion: "Discussion", legislation: "Legal text" };
 
+function foundLate(p) {
+  // Filed on an earlier day because that's when it was published, but only turned up recently.
+  if (!p.posted_at || p.published_estimated) return false;
+  const found = new Date(p.posted_at).getTime();
+  return Date.now() - found < 24 * 3600e3 && dayKey(new Date(p.feed_at)) !== dayKey(new Date(p.posted_at));
+}
+
 function renderTags(p) {
   return h("ul", { class: "tags", "aria-label": "Tags" }, p.tags.map((t) => h("li", {},
     h("button", { class: `tag t-${t.type}`, title: `Show only #${t.slug}`, onClick: () => includeTag(t.slug) }, t.slug))));
@@ -348,7 +355,10 @@ function renderPost(p) {
 
   const byline = h("div", { class: "byline" },
     h("span", { class: "source" }, p.source_name || "Unknown source"),
-    h("time", { datetime: p.feed_at }, clock(p.feed_at)),
+    p.published_estimated
+      ? h("time", { datetime: p.feed_at, title: "The source gave no publish date, so this is when we found it" }, `found ${clock(p.feed_at)}`)
+      : h("time", { datetime: p.feed_at, title: `Published ${shortDate(p.feed_at)}` }, clock(p.feed_at)),
+    foundLate(p) ? h("span", { class: "badge", title: `Published ${shortDate(p.feed_at)}, found ${shortDate(p.posted_at)}` }, "Just found") : null,
     TYPE_TEXT[p.content_type] ? h("span", { class: "badge" }, TYPE_TEXT[p.content_type]) : null,
     p.legislation_stage ? h("span", { class: "badge" },
       `${STAGE_TEXT[p.legislation_stage] || p.legislation_stage}${p.jurisdiction ? ` (${p.jurisdiction.toUpperCase()})` : ""}`) : null,
@@ -403,14 +413,31 @@ function renderPost(p) {
   li.append(...kids(
     byline,
     h("h3", {}, h("a", { href: safeUrl(p.url), target: "_blank", rel: "noopener noreferrer" }, p.title)),
-    p.delta ? h("p", { class: "delta" }, `New: ${p.delta}`) : null,
-    h("p", { class: "summary" }, p.summary),
+    ...leadAndMore(p),
     storyLine,
     tagsHolder,
     h("div", { class: "actions" }, voteBtn, commentBtn, coverageBtn, tagBtn, flagBtn),
     slot,
   ));
   return li;
+}
+
+function leadAndMore(p) {
+  // Inverted pyramid: the lead is always visible, the rest sits behind "more". A follow-up's
+  // "New:" line is its lead, so the general summary isn't shown twice.
+  const lead = p.delta ? h("p", { class: "delta" }, `New: ${p.delta}`) : h("p", { class: "summary" }, p.summary);
+  if (!p.details) return [lead];
+  const more = h("p", { class: "summary details", hidden: true }, p.details);
+  const btn = h("button", {
+    class: "more-link", "aria-expanded": "false",
+    onClick: () => {
+      more.hidden = !more.hidden;
+      btn.setAttribute("aria-expanded", String(!more.hidden));
+      btn.textContent = more.hidden ? "…more" : "less";
+    },
+  }, "…more");
+  lead.append(" ", btn);
+  return [lead, more];
 }
 
 function coveragePanel(p) {

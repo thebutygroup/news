@@ -129,3 +129,14 @@ def test_pages_carry_a_version_so_deploys_show_up(client):
     assert "/static/app.js?v=" in html and "/static/styles.css?v=" in html
     assert client.get("/").headers["cache-control"] == "no-cache"
     assert "immutable" in client.get("/static/fonts/big-shoulders-latin-800-normal.woff2").headers["cache-control"]
+
+
+def test_feed_carries_lead_and_details(client):
+    from app.db import conn
+
+    with conn() as c:
+        pid = c.execute("select id from posts order by id limit 1").fetchone()["id"]
+        c.execute("update posts set details = 'The rest of the story.' where id = %s", (pid,))
+    post = [p for p in feed(client)["posts"] if p["id"] == pid][0]
+    assert post["details"] == "The rest of the story."
+    assert [p["id"] for p in feed(client, "?q=rest")["posts"]] == [pid]  # details are searchable

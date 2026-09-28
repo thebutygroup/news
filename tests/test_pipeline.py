@@ -95,3 +95,66 @@ def test_merge_pass_folds_split_stories(db):
         c.execute("delete from posts where url in ('https://a.example/breach', 'https://b.example/breach')")
         c.execute("delete from coverage where url = 'https://b.example/breach'")
         c.execute("delete from stories where id = %s", (s1,))
+
+
+def test_posts_use_publish_date_not_found_date(db):
+    from datetime import timedelta
+    from app.normalize import utcnow
+    from app.pipeline.cluster import _feed_at
+
+    now = utcnow()
+    five_days_ago = now - timedelta(days=5)
+    assert _feed_at(five_days_ago) == five_days_ago  # old stays old
+    assert abs((_feed_at(now + timedelta(days=2)) - now).total_seconds()) < 5  # future dates are mistakes
+    assert abs((_feed_at(None) - now).total_seconds()) < 5
+
+
+def test_missing_dates_are_read_from_the_article(db):
+    import httpx
+    from datetime import timedelta
+    from app.normalize import utcnow
+    from app.pipeline.run import fill_missing_dates
+
+    yesterday = (utcnow() - timedelta(days=1)).strftime("%Y-%m-%dT08:00:00Z")
+    html = f'<meta property="article:published_time" content="{yesterday}">'
+    client = httpx.Client(transport=httpx.MockTransport(lambda req: httpx.Response(200, text=html)))
+    with conn() as c:
+        cid = c.execute("""insert into candidates (topic, url, canonical_url, title, found_via)
+                           values ('ai', 'https://d.example/a', 'https://d.example/a', 'x', 'search') returning id""").fetchone()["id"]
+    items = [{"id": cid, "url": "https://d.example/a", "published_at": None}]
+    stats = {}
+    fill_missing_dates(items, stats, client)
+    assert items[0]["published_at"].isoformat().startswith(yesterday[:16])
+    assert stats == {"publish_dates_found": 1, "publish_dates_unknown": 0}
+
+
+def test_old_articles_found_by_date_lookup_are_dropped(db):
+    import httpx
+    from app.pipeline.run import fill_missing_dates
+
+    html = '<meta property="article:published_time" content="2024-01-10T08:00:00Z">'
+    client = httpx.Client(transport=httpx.MockTransport(lambda req: httpx.Response(200, text=html)))
+    with conn() as c:
+        cid = c.execute("""insert into candidates (topic, url, canonical_url, title, found_via)
+                           values ('ai', 'https://d.example/old', 'https://d.example/old', 'x', 'search') returning id""").fetchone()["id"]
+    items = [{"id": cid, "url": "https://d.example/old", "published_at": None}]
+    stats = {}
+    fill_missing_dates(items, stats, client)
+    assert items == [] and stats["dropped_as_old"] == 1
+    assert one("select decision from candidates where id = %s", cid)["decision"] == "rejected"
+
+
+def test_follow_up_keeps_its_summary_behind_more():
+    from app.pipeline.cluster import _details_for
+
+    item = {"summary": "Root cause was a contractor account without two-factor login.", "details": "More."}
+    assert _details_for(item, "OpenAI now says 2 million users were affected.") .startswith("Root cause")
+    assert _details_for(item, None) == "More."
+
+
+def test_links_to_private_addresses_are_not_fetched():
+    from app.sources.fetch import is_public_url
+
+    assert not is_public_url("http://127.0.0.1/admin")
+    assert not is_public_url("http://192.168.1.1/")
+    assert not is_public_url("file:///etc/passwd")
