@@ -1,11 +1,16 @@
-"""Daily summary: gathers a day's stories, reads full articles, writes a capped summary, makes audio."""
+"""Twice-daily editions: each covers only what's new since the one before, and never runs twice by accident."""
+from datetime import datetime, timedelta, timezone
+
 import httpx
 
 
-def test_daily_summary_end_to_end(db, tmp_path, monkeypatch):
-    from datetime import datetime
-    from zoneinfo import ZoneInfo
+def _post(c, n, when):
+    c.execute("""insert into posts (url, canonical_url, title, summary, details, source_name, importance, feed_at, posted_at)
+                 values (%s, %s, %s, 'A summary.', 'Some details.', 'Wire', 3, %s, %s)""",
+              (f"https://e.example/{n}", f"https://e.example/{n}", f"Story {n}", when, when))
 
+
+def test_editions_cover_only_whats_new(db, tmp_path, monkeypatch):
     from app import digest
     from app.config import settings
     from app.db import conn
@@ -13,64 +18,101 @@ def test_daily_summary_end_to_end(db, tmp_path, monkeypatch):
 
     monkeypatch.setattr(settings, "podcast_tts", "fake")
     monkeypatch.setattr(settings, "media_dir", tmp_path)
-    article = "<html><body><article><p>" + "The full story in detail. " * 40 + "</p></article></body></html>"
-    monkeypatch.setattr("app.sources.fetch.make_client",
-                        lambda transport=None: httpx.Client(transport=httpx.MockTransport(lambda r: httpx.Response(200, text=article))))
-    tz = ZoneInfo(settings.timezone)
-    day = datetime(2026, 3, 10, tzinfo=tz).date()
-    noon = datetime(2026, 3, 10, 12, 0, tzinfo=tz)
+    monkeypatch.setattr("app.digest.fetch_full_text", lambda stories: None)
+    T = datetime(2026, 3, 20, 5, 0, tzinfo=timezone.utc)
+    day = T.date()
     with conn() as c:
-        for i in range(3):
-            c.execute("""insert into posts (url, canonical_url, title, summary, details, source_name, importance, feed_at)
-                         values (%s, %s, %s, 'A summary.', 'Some details.', 'Wire', %s, %s)""",
-                      (f"https://d.example/{i}", f"https://d.example/{i}", f"Story {i}", 3 - i, noon))
-    stories = digest.stories_for_day(day)
-    assert len(stories) == 3 and stories[0]["title"] == "Story 0"
+        c.execute("delete from episodes")
+        _post(c, "a", T - timedelta(hours=2))
+        _post(c, "b", T - timedelta(hours=3))
 
-    plan = digest.make_digest(day, FakeLLM(), dry_run=True)
-    assert plan["dry_run"] and plan["summary"] == "write" and plan["stories"] == 3
+    monkeypatch.setattr("app.digest.utcnow", lambda: T)
+    assert digest.make_edition(day, "morning", FakeLLM(), dry_run=True)["stories"] == 2
+    morning = digest.make_edition(day, "morning", FakeLLM())
+    assert morning["stories"] == 2 and morning["audio"] == "ok", morning
 
-    result = digest.make_digest(day, FakeLLM())
-    assert result["audio"] == "ok" and result["words"] > 0, result
-    assert result["full_text"] >= 1, "top stories should have their article text"
+    with conn() as c:
+        _post(c, "c", T + timedelta(hours=5))
+    monkeypatch.setattr("app.digest.utcnow", lambda: T + timedelta(hours=7))
+    afternoon = digest.make_edition(day, "afternoon", FakeLLM())
+    assert afternoon["stories"] == 1, "the afternoon edition only sees what came after the morning one"
+    with conn() as c:
+        rows = c.execute("select edition, post_ids from episodes where day = %s order by window_end", (day,)).fetchall()
+    assert set(rows[0]["post_ids"]).isdisjoint(rows[1]["post_ids"])
 
-    # Running the same day again does nothing and calls nothing.
+    # Running it again does nothing; forcing it keeps the same window, so the same stories.
     llm = FakeLLM()
-    again = digest.make_digest(day, llm)
-    assert "already done" in again["skipped"] and llm.usage["calls"] == 0
+    assert "already done" in digest.make_edition(day, "afternoon", llm)["skipped"] and llm.usage["calls"] == 0
+    forced = digest.make_edition(day, "afternoon", FakeLLM(), force=True)
+    assert forced["stories"] == 1 and forced["window"] == afternoon["window"]
 
-    # Re-recording audio reuses the saved script: no Claude calls at all.
+    # Nothing new since the last edition: no edition, no spend.
+    monkeypatch.setattr("app.digest.utcnow", lambda: T + timedelta(hours=23))
     llm = FakeLLM()
-    redo = digest.make_digest(day, llm, audio_only=True)
-    assert redo["audio"] == "ok" and redo["script"] == "reuse saved" and llm.usage["calls"] == 0
+    assert "nothing new" in digest.make_edition(day + timedelta(days=1), "morning", llm)["skipped"]
+    assert llm.usage["calls"] == 0
 
-    # --new-script rewrites only the script (one cheap call) and re-records.
-    llm = FakeLLM()
-    fresh = digest.make_digest(day, llm, new_script=True)
-    assert fresh["audio"] == "ok" and fresh["summary"] == "keep" and llm.usage["calls"] == 1
-
-    # --force redoes everything, on the same row.
-    llm = FakeLLM()
-    forced = digest.make_digest(day, llm, force=True)
-    assert forced["id"] == result["id"] and llm.usage["calls"] == 2  # summary + script
+    editions = [d for d in digest.recent() if d["day"] == str(day)]
+    assert sorted(d["edition"] for d in editions) == ["afternoon", "morning"]
+    assert all(d["audio_url"] and d["covers_until"] for d in editions)
 
     from fastapi.testclient import TestClient
     from app.web import app
 
     with TestClient(app) as client:
-        days = client.get("/api/digests").json()
-        mine = [d for d in days if d["day"] == str(day)][0]
-        assert mine["headline"] and mine["paragraphs"][0]["post_ids"]
-        assert mine["sources"] and mine["audio_url"].endswith(".mp3")
-        assert client.get(mine["audio_url"]).headers["content-type"] == "audio/mpeg"
+        assert len([d for d in client.get("/api/digests").json() if d["day"] == str(day)]) == 2
+        assert client.post(f"/api/digests/{day}/evening").status_code == 422
         import feedparser
 
         feed = feedparser.parse(client.get("/podcast.xml").content)
-        assert not feed.bozo and feed.entries
-        assert client.post("/api/digests/not-a-date").status_code == 422
+        assert not feed.bozo and any(e.title.startswith("Afternoon:") for e in feed.entries)
     with conn() as c:
-        c.execute("delete from posts where url like 'https://d.example/%%'")
-        c.execute("delete from episodes where day = %s", (day,))
+        c.execute("delete from posts where url like 'https://e.example/%%'")
+        c.execute("delete from episodes")
+
+
+def test_editions_made_late_still_split_at_noon(db, tmp_path, monkeypatch):
+    from app import digest
+    from app.config import settings
+    from app.db import conn
+    from app.pipeline.fake_llm import FakeLLM
+
+    monkeypatch.setattr(settings, "podcast_enabled", False)
+    monkeypatch.setattr("app.digest.fetch_full_text", lambda stories: None)
+    # 20 March 2026: the UK is on GMT, so local time equals UTC here.
+    day = datetime(2026, 3, 20).date()
+    noon = datetime(2026, 3, 20, 12, 0, tzinfo=timezone.utc)
+    with conn() as c:
+        c.execute("delete from episodes")
+        _post(c, "night", noon - timedelta(hours=9))     # 03:00, overnight
+        _post(c, "lunch", noon + timedelta(hours=2))     # 14:00, afternoon
+    monkeypatch.setattr("app.digest.utcnow", lambda: noon + timedelta(hours=6))  # both made at 18:00
+    morning = digest.make_edition(day, "morning", FakeLLM())
+    afternoon = digest.make_edition(day, "afternoon", FakeLLM())
+    assert morning["stories"] == 1 and afternoon["stories"] == 1
+    assert morning["window"][1].startswith("2026-03-20T12:00")
+    with conn() as c:
+        c.execute("delete from posts where url like 'https://e.example/%%'")
+        c.execute("delete from episodes")
+
+
+def test_only_scheduled_scans_make_editions(db, monkeypatch):
+    from app.config import settings
+    from app.db import conn
+    from app.pipeline.run import run_scan
+
+    monkeypatch.setattr(settings, "digest_enabled", True)
+    monkeypatch.setattr(settings, "podcast_enabled", False)
+    monkeypatch.setattr("app.digest.fetch_full_text", lambda stories: None)
+    manual = run_scan("manual:joe@example.com", force=True)
+    assert "edition" not in manual["stats"]
+    with conn() as c:
+        _post(c, "sched", datetime.now(timezone.utc))
+    scheduled = run_scan("schedule")
+    assert scheduled["stats"]["edition"]["edition"] in ("morning", "afternoon")
+    with conn() as c:
+        c.execute("delete from posts where url = 'https://e.example/sched'")
+        c.execute("delete from episodes")
 
 
 def test_paid_voices_stop_at_the_monthly_limit(db, monkeypatch):
@@ -110,34 +152,3 @@ def test_elevenlabs_request_shape(monkeypatch):
     assert seen[0].headers["xi-api-key"] == "k"
     assert seen[0].url.path.endswith(settings.elevenlabs_voice_a) and seen[1].url.path.endswith(settings.elevenlabs_voice_b)
     assert b'"model_id"' in seen[0].content
-
-
-def test_a_summary_written_mid_day_is_redone_once_the_day_is_over(db, tmp_path, monkeypatch):
-    from datetime import datetime, timedelta
-    from zoneinfo import ZoneInfo
-
-    from app import digest
-    from app.config import settings
-    from app.db import conn
-    from app.pipeline.fake_llm import FakeLLM
-
-    monkeypatch.setattr(settings, "podcast_tts", "fake")
-    monkeypatch.setattr(settings, "media_dir", tmp_path)
-    monkeypatch.setattr("app.digest.fetch_full_text", lambda stories: None)
-    tz = ZoneInfo(settings.timezone)
-    day = datetime(2026, 3, 12, tzinfo=tz).date()
-    noon = datetime(2026, 3, 12, 12, 0, tzinfo=tz)
-    with conn() as c:
-        c.execute("""insert into posts (url, canonical_url, title, summary, source_name, importance, feed_at)
-                     values ('https://m.example/1', 'https://m.example/1', 'Midday story', 'S.', 'Wire', 3, %s)""", (noon,))
-    digest.make_digest(day, FakeLLM())
-    with conn() as c:  # pretend that run happened at lunchtime on the day itself
-        c.execute("update episodes set created_at = %s where day = %s", (noon + timedelta(hours=1), day))
-    llm = FakeLLM()
-    redo = digest.make_digest(day, llm)
-    assert redo["summary"].startswith("rewrite") and llm.usage["calls"] == 2
-    llm = FakeLLM()
-    assert "already done" in digest.make_digest(day, llm)["skipped"] and llm.usage["calls"] == 0
-    with conn() as c:
-        c.execute("delete from posts where url = 'https://m.example/1'")
-        c.execute("delete from episodes where day = %s", (day,))

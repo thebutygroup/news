@@ -44,7 +44,7 @@ class FakeLLM:
         if tool_name == "digest_summary":
             top = payload["stories"][:4]
             return {"headline": top[0]["headline"][:100],
-                    "paragraphs": [{"text": f"{s['source']}: {s['summary']}", "post_ids": [s["id"]]} for s in top]}
+                    "paragraphs": [{"text": f"{s.get('source', 'A source')}: {s.get('summary', s['headline'])}", "post_ids": [s["id"]]} for s in top]}
         if tool_name == "podcast_script":
             a, b = payload["hosts"]
             segs = [{"speaker": a, "text": f"It's {payload['day']}. {payload['headline']}."}]

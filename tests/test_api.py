@@ -140,3 +140,12 @@ def test_feed_carries_lead_and_details(client):
     post = [p for p in feed(client)["posts"] if p["id"] == pid][0]
     assert post["details"] == "The rest of the story."
     assert [p["id"] for p in feed(client, "?q=rest")["posts"]] == [pid]  # details are searchable
+
+
+def test_support_strip_only_when_configured(client, monkeypatch):
+    from app.config import settings
+
+    assert client.get("/api/meta").json()["support"] is None
+    monkeypatch.setattr(settings, "support_url", "https://substack.com/@joebuty")
+    support = client.get("/api/meta").json()["support"]
+    assert support["url"] == "https://substack.com/@joebuty" and "Substack" in support["label"]

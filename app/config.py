@@ -68,11 +68,10 @@ class Settings:
 
     # Daily summary (written) and its audio version
     digest_enabled: bool = field(default_factory=lambda: _env("DIGEST_ENABLED", "1") == "1")
-    digest_cron: str = field(default_factory=lambda: _env("DIGEST_CRON", "30 5 * * *"))
     digest_model: str = field(default_factory=lambda: _env("DIGEST_MODEL", "claude-sonnet-5"))
-    digest_words: int = field(default_factory=lambda: _int("DIGEST_WORDS", 300))
-    digest_max_words: int = field(default_factory=lambda: _int("DIGEST_MAX_WORDS", 450))
-    digest_fulltext_stories: int = field(default_factory=lambda: _int("DIGEST_FULLTEXT_STORIES", 15))
+    digest_words: int = field(default_factory=lambda: _int("DIGEST_WORDS", 250))
+    digest_max_words: int = field(default_factory=lambda: _int("DIGEST_MAX_WORDS", 400))
+    digest_fulltext_stories: int = field(default_factory=lambda: _int("DIGEST_FULLTEXT_STORIES", 12))
     digest_fulltext_chars: int = field(default_factory=lambda: _int("DIGEST_FULLTEXT_CHARS", 8000))
     podcast_enabled: bool = field(default_factory=lambda: _env("PODCAST_ENABLED", "1") == "1")
     podcast_model: str = field(default_factory=lambda: _env("PODCAST_MODEL", "claude-haiku-4-5-20251001"))
@@ -85,7 +84,7 @@ class Settings:
     podcast_host_b: str = field(default_factory=lambda: _env("PODCAST_HOST_B", "Sam"))
     podcast_voice_a: str = field(default_factory=lambda: _env("PODCAST_VOICE_A", "en-GB-RyanNeural"))
     podcast_voice_b: str = field(default_factory=lambda: _env("PODCAST_VOICE_B", "en-GB-SoniaNeural"))
-    podcast_words: int = field(default_factory=lambda: _int("PODCAST_WORDS", 800))
+    podcast_words: int = field(default_factory=lambda: _int("PODCAST_WORDS", 500))
     podcast_keep: int = field(default_factory=lambda: _int("PODCAST_KEEP", 30))
     podcast_monthly_char_limit: int = field(default_factory=lambda: _int("PODCAST_MONTHLY_CHAR_LIMIT", 120000))
     podcast_max_chars_per_episode: int = field(default_factory=lambda: _int("PODCAST_MAX_CHARS_PER_EPISODE", 6000))
@@ -102,6 +101,13 @@ class Settings:
     # Stories
     story_tag_threshold: int = field(default_factory=lambda: _int("STORY_TAG_THRESHOLD", 2))
     story_window_days: int = field(default_factory=lambda: _int("STORY_WINDOW_DAYS", 21))
+
+    # Optional thank-you strip at the top of the feed, linking to wherever people can support the project
+    support_url: str | None = field(default_factory=lambda: _env("SUPPORT_URL"))
+    support_text: str = field(default_factory=lambda: _env(
+        "SUPPORT_TEXT",
+        "Thanks for reading. This is a one-person side project. If it's useful, subscribing to my Substack helps keep it going."))
+    support_label: str = field(default_factory=lambda: _env("SUPPORT_LABEL", "Subscribe on Substack"))
 
     # Identity (Cloudflare Access)
     cf_access_team_domain: str | None = field(default_factory=lambda: _env("CF_ACCESS_TEAM_DOMAIN"))

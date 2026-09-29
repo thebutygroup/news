@@ -214,27 +214,25 @@ Caps keep a scan bounded: `MAX_LLM_CALLS_PER_RUN`, `MAX_SEARCHES_PER_RUN`,
 `MAX_CANDIDATES_PER_RUN`, `X_MAX_READS_PER_RUN`. A run that hits a cap stops cleanly and says so
 on `/runs`.
 
-## Daily summary and audio
+## Briefings: morning and afternoon editions
 
-Every morning at 05:30 UK (`DIGEST_CRON`), after the 04:00 scan has picked up the US evening's
-news, the worker writes a summary of the previous day (`app/digest.py`). It shows on that day's
-banner: **Summary** opens the write-up, **Listen** plays the audio.
+After each **scheduled** scan, the worker writes an edition of the briefing (`app/digest.py`): the
+**morning** edition after the 04:00 scan, the **afternoon** edition after the 13:00 scan. Both sit
+on the day's banner, each with its own read and play buttons.
 
-1. Gather every post filed on that day, one entry per story, most important first. Posts flagged
-   "Not relevant" are left out.
-2. Fetch the full article for the top `DIGEST_FULLTEXT_STORIES` (15) and extract its text, so the
-   summary is written from the whole story. The text is used for that one call and never stored.
-   Paywalled articles fall back to our summary and details.
-3. Claude (`DIGEST_MODEL`, Sonnet by default) writes about `DIGEST_WORDS` (300) words, never more
-   than `DIGEST_MAX_WORDS` (450): factual, one mention per story, and skipping anything the
-   previous two days' summaries covered unless there's major news. Each paragraph links to the
-   posts it draws on. There's no Bauer lens here.
-4. The audio (`PODCAST_ENABLED`): Haiku turns the summary into a two-host script, and text to
-   speech reads it. `PODCAST_TTS` is `edge` (free, unofficial endpoint), `azure` (official, same
-   voices) or `elevenlabs` (most natural, paid per character). MP3s live in the `news-media`
-   volume; `/podcast.xml` is a feed for any podcast app.
-
-Rewrite any day's summary: `docker compose exec worker python -m app.digest 2026-09-24`.
+- **No repeats.** Each edition covers only the stories posted since the previous edition ended
+  (its window), and it's shown the previous edition so the writing doesn't repeat it either.
+  Stories that continue from before are marked, and only their new developments are covered.
+- **Full stories.** The top `DIGEST_FULLTEXT_STORIES` (12) articles are fetched and their text given
+  to Claude (`DIGEST_MODEL`, Sonnet). The text is used once and never stored.
+- **Capped.** About `DIGEST_WORDS` (250), never more than `DIGEST_MAX_WORDS` (400). A quiet window
+  gives a short edition, and an empty one gives none.
+- **Audio.** Haiku turns each edition into a two-host script of about `PODCAST_WORDS` (500), and
+  text to speech records it. That's two recordings a day.
+- **Manual scans never make editions,** so testing can't spend on them. To make one by hand:
+  `python -m app.digest --edition morning` (add `--dry-run` first).
+- **The morning edition covers overnight news,** which is mostly published the day before, so its
+  stories often sit under yesterday's banner. The edition belongs to the day it was written.
 
 ## Cost guards
 
@@ -244,10 +242,8 @@ Nothing that costs money reruns by accident.
   feeds costs nothing for items already seen. A manual scan ("Scan now" or `--once`) is refused
   within `SCAN_COOLDOWN_MINUTES` (30) of the last good scan; add `--force` to override. The merge
   pass only calls Claude when the scan actually posted something new.
-- **Daily summary:** `python -m app.digest DAY` only does what's missing. A day with a summary
-  keeps it, unless it was written before the day was over (a manual run for "today so far"); that
-  one is rewritten once, with the whole day, by the next run after midnight. Missing audio is
-  re-recorded from the saved script, so a failed recording doesn't pay
+- **Editions:** `python -m app.digest` only does what's missing. An edition that exists is left
+  alone. Missing audio is re-recorded from the saved script, so a failed recording doesn't pay
   for Sonnet or the script again. A finished day is left alone.
   - `--dry-run` shows what would happen and the estimated text-to-speech characters, and spends nothing.
   - `--audio-only` re-records audio from the saved script.
@@ -310,7 +306,7 @@ erDiagram
 | `coverage` | Another outlet's article about a story, folded under a post | Cluster | "N more sources" |
 | `tags`, `post_tags` | Tags and which posts carry them | Seed, curator, cluster, people | Feed filters, typeahead, relevance |
 | `votes`, `comments`, `feedback` | What the team did | Web | Feed, curator (feedback and votes) |
-| `episodes` | One day's summary: headline, paragraphs, cited posts, audio script, audio file | Daily summary job | Day banners, `/podcast.xml` |
+| `episodes` | One briefing edition: day, morning or afternoon, the window it covers, headline, paragraphs, cited posts, audio script and file | Edition job after scheduled scans | Day banners, `/podcast.xml` |
 
 We store summaries, titles and links. We never store article text.
 

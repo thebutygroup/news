@@ -173,6 +173,15 @@ def _run(trigger: str) -> dict:
             merge_duplicate_stories(llm, stats)  # only worth a Claude call when something new was posted
         materialize_story_tags(stats)
         _source_upkeep(stats)
+        if trigger == "schedule" and settings.digest_enabled:
+            try:  # manual scans never make editions, so testing can't spend on them
+                from ..digest import after_scheduled_scan
+
+                ed = after_scheduled_scan()
+                if ed:
+                    stats["edition"] = {k: ed.get(k) for k in ("edition", "stories", "audio", "skipped", "error") if ed.get(k)}
+            except Exception as exc:  # noqa: BLE001 - never fail a scan over its briefing
+                log.warning("edition failed: %s", exc)
     except BudgetExceeded as exc:
         status, error = "error", str(exc)
     except Exception as exc:  # noqa: BLE001

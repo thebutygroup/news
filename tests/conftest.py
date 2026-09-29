@@ -26,6 +26,7 @@ os.environ.update({
     "CHANNEL_DISCOVERY_PER_RUN": "0",
     "FETCH_WORKERS": "2",
     "SCAN_COOLDOWN_MINUTES": "0",
+    "DIGEST_ENABLED": "0",
 })
 
 

@@ -175,24 +175,26 @@ def podcast_audio(episode_id: int):
 
 
 @app.get("/api/digests")
-def digests(days: int = 60):
+def digests(limit: int = 120):
     from .digest import recent
 
-    return recent(min(days, 365))
+    return recent(min(limit, 730))
 
 
-@app.post("/api/digests/{day}")
-def regenerate_digest(day: str, force: bool = False, audio_only: bool = False, dry_run: bool = False,
-                      _admin: str = Depends(require_admin)):
+@app.post("/api/digests/{day}/{edition}")
+def regenerate_edition(day: str, edition: str, force: bool = False, audio_only: bool = False, dry_run: bool = False,
+                       _admin: str = Depends(require_admin)):
     from datetime import date as _date
 
-    from .digest import make_digest
+    from .digest import EDITIONS, make_edition
 
     try:
         target = _date.fromisoformat(day)
     except ValueError:
         raise HTTPException(422, "Use a date like 2026-09-24")
-    return make_digest(target, force=force, audio_only=audio_only, dry_run=dry_run)
+    if edition not in EDITIONS:
+        raise HTTPException(422, "Edition is morning or afternoon")
+    return make_edition(target, edition, force=force, audio_only=audio_only, dry_run=dry_run)
 
 
 @app.get("/healthz")
@@ -233,6 +235,8 @@ def get_meta():
         "last_run": last,
         "schedule": settings.scan_cron,
         "x_enabled": bool(settings.x_bearer_token),
+        "support": ({"url": settings.support_url, "text": settings.support_text, "label": settings.support_label}
+                    if settings.support_url else None),
         "timezone": settings.timezone,
     }
 

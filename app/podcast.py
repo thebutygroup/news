@@ -45,9 +45,14 @@ SCRIPT_SCHEMA = {
 }
 
 
-def write_script(llm, day_label: str, digest: dict, stories: list[dict]) -> list[dict]:
+def write_script(llm, day_label: str, digest: dict, stories: list[dict], edition: str | None = None) -> list[dict]:
+    name = f"{edition} edition" if edition else "roundup"
+    scope = (f'This is the {name} for {day_label}, covering only what\'s new since the previous edition. '
+             f'Open with "Here\'s the {name} of AI news for {day_label}." '
+             f'Close with "That\'s the {name} for {day_label}."')
     system = string.Template(PROMPT.read_text()).safe_substitute(
-        host_a=settings.podcast_host_a, host_b=settings.podcast_host_b, words=str(settings.podcast_words), day=day_label)
+        host_a=settings.podcast_host_a, host_b=settings.podcast_host_b, words=str(settings.podcast_words),
+        day=day_label, scope=scope)
     cited = {i for p in digest["paragraphs"] for i in p.get("post_ids", [])}
     result = llm.structured(
         model=settings.podcast_model, system=system, tool_name="podcast_script", schema=SCRIPT_SCHEMA,
@@ -188,12 +193,12 @@ def rss() -> str:
     base = settings.public_base_url
     with conn() as c:
         eps = c.execute("""select * from episodes where status = 'ok' and audio_file is not null
-                           order by coalesce(day, created_at::date) desc, id desc limit 50""").fetchall()
+                           order by coalesce(window_end, created_at) desc limit 60""").fetchall()
     items = []
     for e in eps:
         mins, secs = divmod(e["duration_seconds"] or 0, 60)
         items.append(f"""    <item>
-      <title>{escape(e['headline'] or e['title'])}</title>
+      <title>{escape(((e['edition'] or '').capitalize() + ': ' if e['edition'] else '') + (e['headline'] or e['title']))}</title>
       <description>{escape(e['notes'])}</description>
       <enclosure url="{base}/podcast/{e['id']}.mp3" length="{e['bytes'] or 0}" type="audio/mpeg"/>
       <guid isPermaLink="false">news-briefing-{e['id']}</guid>
@@ -203,9 +208,9 @@ def rss() -> str:
     return f"""<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0" xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd">
   <channel>
-    <title>News daily summary</title>
+    <title>News briefing</title>
     <link>{base}/</link>
-    <description>Each day's AI news from {escape(base)}, summarised and read aloud.</description>
+    <description>AI news from {escape(base)}, twice a day: a morning and an afternoon edition.</description>
     <language>en-gb</language>
     <itunes:author>News</itunes:author>
     <itunes:explicit>false</itunes:explicit>

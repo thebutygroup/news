@@ -293,11 +293,22 @@ function renderFeed() {
             h("a", { href: "/runs" }, "scan log"), ".")));
     return;
   }
-  for (const [key, posts] of groupByDay(state.posts)) {
+  const groups = groupByDay(state.posts);
+  if (!(state.include.length || state.exclude.length || state.q)) {
+    // A day can have an edition before anything is filed under it (the morning edition covers
+    // overnight news, mostly published the day before), so give it a banner anyway.
+    const oldest = [...groups.keys()].pop();
+    for (const day of Object.keys(state.digests)) {
+      if (!groups.has(day) && (!oldest || day > oldest)) groups.set(day, []);
+    }
+  }
+  const days = [...groups.keys()].sort().reverse();
+  for (const key of days) {
+    const posts = groups.get(key);
     const open = !state.collapsed.has(key);
     const listId = `day-${key}`;
     const rel = relativeDay(key);
-    const digest = state.digests[key];
+    const editions = state.digests[key] || [];
     const setOpen = (nowOpen) => {
       if (nowOpen) state.collapsed.delete(key); else state.collapsed.add(key);
       nameBtn.setAttribute("aria-expanded", String(nowOpen));
@@ -308,24 +319,30 @@ function renderFeed() {
       onClick: () => setOpen(state.collapsed.has(key)) }, dayPosterName(key));
     const chevBtn = h("button", { class: "chev", "aria-expanded": String(open), "aria-controls": listId,
       "aria-label": `Show or hide ${dayPosterName(key)}`, onClick: () => setOpen(state.collapsed.has(key)) }, "▾");
-    const panel = digest ? digestPanel(digest) : null;
+    // One read button and one play button per edition. Opening one edition closes the other.
+    const panels = editions.map(digestPanel);
+    const readBtns = [];
+    const controls = editions.map((ed, i) => {
+      const label = editionName(ed);
+      const btn = h("button", { class: "day-btn", "aria-expanded": "false", onClick: () => {
+        const opening = panels[i].hidden;
+        panels.forEach((pn, j) => { pn.hidden = !(opening && j === i); readBtns[j].setAttribute("aria-expanded", String(opening && j === i)); });
+      } }, label);
+      readBtns.push(btn);
+      return h("span", { class: "edition" }, btn, ed.audio_url ? playButton(ed, label) : null);
+    });
     const poster = h("div", { class: "day-poster" },
       nameBtn,
       h("div", { class: "day-right" },
-        digest ? h("span", { class: "day-controls" },
-          h("button", { class: "day-btn", "aria-expanded": "false", onClick: (e) => {
-            panel.hidden = !panel.hidden;
-            e.currentTarget.setAttribute("aria-expanded", String(!panel.hidden));
-            e.currentTarget.textContent = panel.hidden ? "Summary" : "Hide summary";
-          } }, "Summary"),
-          digest.audio_url ? playButton(digest) : null) : null,
+        controls.length ? h("span", { class: "day-controls" }, controls) : null,
         h("span", { class: "day-meta" },
           rel ? h("span", {}, rel) : null,
           h("span", {}, `${posts.length} ${posts.length === 1 ? "post" : "posts"}`),
           chevBtn)));
-    const list = h("ol", { class: "day-posts", id: listId, hidden: !open }, posts.map(renderPost));
+    const list = h("ol", { class: "day-posts", id: listId, hidden: !open },
+      posts.length ? posts.map(renderPost) : h("li", { class: "post empty-day" }, "Nothing filed under this day yet."));
     feed.append(h("section", { class: "day", "aria-label": dayPosterName(key) },
-      ...kids(h("h2", { class: "visually-hidden" }, dayPosterName(key)), poster, panel, list)));
+      ...kids(h("h2", { class: "visually-hidden" }, dayPosterName(key)), poster, panels, list)));
   }
   if (state.next) {
     feed.append(h("button", { class: "btn quiet more", onClick: () => load(false) }, "Show older posts"));
@@ -341,13 +358,18 @@ player.audio.addEventListener("play", () => setPlayLabel(player.button, true));
 
 function setPlayLabel(btn, playing) {
   if (!btn) return;
-  btn.textContent = playing ? "❚❚ Pause" : `▶ Listen${btn.dataset.mins ? `, ${btn.dataset.mins} min` : ""}`;
+  btn.textContent = playing ? "❚❚" : `▶${btn.dataset.mins ? ` ${btn.dataset.mins}m` : ""}`;
   btn.setAttribute("aria-pressed", String(playing));
 }
 
-function playButton(digest) {
+function editionName(ed) {
+  return ed.edition ? ed.edition[0].toUpperCase() + ed.edition.slice(1) : "Summary";
+}
+
+function playButton(digest, label) {
   const mins = digest.duration_seconds ? Math.max(1, Math.round(digest.duration_seconds / 60)) : "";
-  const btn = h("button", { class: "day-btn", "aria-pressed": "false", "data-mins": String(mins),
+  const btn = h("button", { class: "day-btn play", "aria-pressed": "false", "data-mins": String(mins),
+    "aria-label": `Play the ${label.toLowerCase()} edition${mins ? `, ${mins} minutes` : ""}`,
     onClick: () => {
       const src = new URL(digest.audio_url, location.href).href;
       if (player.audio.src === src && !player.audio.paused) { player.audio.pause(); return; }
@@ -365,11 +387,13 @@ function playButton(digest) {
 function digestPanel(d) {
   const byId = Object.fromEntries((d.sources || []).map((s) => [s.id, s]));
   return h("div", { class: "digest", hidden: true },
-    h("p", { class: "digest-head" }, d.headline),
+    h("p", { class: "digest-head" }, d.edition ? `${editionName(d)} edition: ` : "", d.headline),
     (d.paragraphs || []).map((para) => h("p", {}, para.text, ...(para.post_ids || []).filter((id) => byId[id]).map((id) =>
       [" ", h("a", { class: "digest-src", href: safeUrl(byId[id].url), target: "_blank", rel: "noopener noreferrer",
         title: byId[id].title }, byId[id].source || "source")]))),
-    h("p", { class: "digest-foot" }, "Written from the day's stories and their full articles. ",
+    h("p", { class: "digest-foot" },
+      d.edition ? `Covers what was new up to ${clock(d.covers_until)}, without repeating the edition before. `
+        : "Written from the day's stories and their full articles. ",
       h("a", { href: "/podcast.xml" }, "Podcast feed")));
 }
 
@@ -598,6 +622,24 @@ function renderMe() {
     state.me.email ? h("a", { href: "/logout" }, "Sign out") : h("a", { class: "btn", href: loginUrl() }, "Sign in")));
 }
 
+const SUPPORT_KEY = "news-support-dismissed";
+
+function renderSupport() {
+  // A slim thank-you strip. Closing it hides it for 30 days on this browser.
+  const box = $("#support");
+  const s = state.meta.support;
+  let dismissed = 0;
+  try { dismissed = Number(localStorage.getItem(SUPPORT_KEY) || 0); } catch (_) { /* storage off */ }
+  if (!s || Date.now() - dismissed < 30 * 864e5) { box.hidden = true; return; }
+  box.replaceChildren(
+    h("p", {}, s.text, " ", h("a", { class: "btn support-link", href: safeUrl(s.url), target: "_blank", rel: "noopener" }, s.label)),
+    h("button", { class: "support-close", "aria-label": "Hide this message", onClick: () => {
+      try { localStorage.setItem(SUPPORT_KEY, String(Date.now())); } catch (_) { /* storage off */ }
+      box.hidden = true;
+    } }, "×"));
+  box.hidden = false;
+}
+
 function renderFooter() {
   const f = $("#footer");
   f.replaceChildren();
@@ -606,6 +648,10 @@ function renderFooter() {
       h("ul", {}, state.meta.similar.map((s) => h("li", {},
         h("a", { href: safeUrl(s.url), target: "_blank", rel: "noopener noreferrer" }, s.name),
         s.note ? h("span", {}, ` ${s.note}`) : null))));
+  }
+  if (state.meta.support) {
+    f.append(h("p", {}, "Like this? ", h("a", { href: safeUrl(state.meta.support.url), target: "_blank", rel: "noopener" },
+      state.meta.support.label), " to support the project."));
   }
   const last = state.meta.last_run;
   f.append(h("p", {},
@@ -620,9 +666,13 @@ async function init() {
   const [me, meta] = await Promise.all([api("/api/me").catch(() => ({})), api("/api/meta").catch(() => ({}))]);
   state.me = me || { email: null };
   const digests = await api("/api/digests").catch(() => []);
-  state.digests = Object.fromEntries((digests || []).map((d) => [d.day, d]));
+  state.digests = {};
+  const order = { morning: 0, afternoon: 1 };
+  for (const d of digests || []) (state.digests[d.day] = state.digests[d.day] || []).push(d);
+  for (const list of Object.values(state.digests)) list.sort((a, b) => (order[a.edition] ?? -1) - (order[b.edition] ?? -1));
   state.meta = { ...state.meta, ...(meta || {}) };
   renderMe();
+  renderSupport();
   renderFooter();
   load(true);
 }
