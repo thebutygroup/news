@@ -152,3 +152,33 @@ def test_elevenlabs_request_shape(monkeypatch):
     assert seen[0].headers["xi-api-key"] == "k"
     assert seen[0].url.path.endswith(settings.elevenlabs_voice_a) and seen[1].url.path.endswith(settings.elevenlabs_voice_b)
     assert b'"model_id"' in seen[0].content
+
+
+def test_an_empty_answer_is_retried_without_article_text_then_falls_back(db, monkeypatch):
+    from app import digest
+    from app.pipeline.fake_llm import FakeLLM
+
+    stories = [{"id": i, "title": f"Story {i}", "summary": f"Summary {i}.", "details": None, "source_name": "Wire",
+                "continuing": False, "new_in_window": None, "outlets": 0, "importance": 3, "full_text": "x" * 500}
+               for i in range(1, 4)]
+    day = datetime(2026, 10, 13).date()
+
+    # Empty first, good second: the second call has no article text.
+    calls = []
+
+    def flaky(self, **kw):
+        calls.append(kw["payload"])
+        if len(calls) == 1:
+            return {"headline": "x"}
+        return {"headline": "Day", "paragraphs": '[{"text": "From a JSON string.", "post_ids": [1]}]'}
+
+    monkeypatch.setattr(FakeLLM, "structured", flaky)
+    out = digest.write_edition(FakeLLM(), day, "morning", stories, None)
+    assert out["paragraphs"] == [{"text": "From a JSON string.", "post_ids": [1]}]
+    assert "full_text" in calls[0]["stories"][0] and "full_text" not in calls[1]["stories"][0]
+    assert "without full article text" in out["note"]
+
+    # Empty twice: the edition still goes out, built from the stories' own summaries.
+    monkeypatch.setattr(FakeLLM, "structured", lambda self, **kw: {})
+    out = digest.write_edition(FakeLLM(), day, "morning", stories, None)
+    assert out["headline"] == "Story 1" and len(out["paragraphs"]) == 3 and out["note"].startswith("fallback")

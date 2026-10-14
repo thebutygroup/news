@@ -33,6 +33,7 @@ class LLM:
         self.client = anthropic.Anthropic(api_key=settings.anthropic_api_key, max_retries=3, timeout=600)
         self.max_calls = max_calls or settings.max_llm_calls_per_run
         self.usage: dict[str, int] = {"calls": 0, "input_tokens": 0, "output_tokens": 0, "web_searches": 0}
+        self.last_stop_reason: str | None = None
 
     # -- bookkeeping -------------------------------------------------------
     def _spend(self) -> None:
@@ -63,9 +64,12 @@ class LLM:
             tool_choice={"type": "tool", "name": tool_name},
         )
         self._track(resp)
+        self.last_stop_reason = resp.stop_reason
+        if resp.stop_reason not in ("tool_use", "end_turn"):
+            log.warning("%s stopped with %s", tool_name, resp.stop_reason)
         for block in resp.content:
             if block.type == "tool_use" and block.name == tool_name:
-                return block.input
+                return block.input if isinstance(block.input, dict) else {}
         raise RuntimeError(f"Model did not return {tool_name} (stop_reason={resp.stop_reason})")
 
     def search_and_report(self, *, model: str, system: str, prompt: str, schema: dict,

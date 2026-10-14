@@ -135,6 +135,38 @@ def fetch_full_text(stories: list[dict], client=None) -> None:
 
 
 
+def _paragraphs(result: dict, valid: set[int]) -> list[dict]:
+    """Read paragraphs however the model shaped them: a list of objects, a list of strings, or the
+    whole list sent back as a JSON string."""
+    raw = result.get("paragraphs") if isinstance(result, dict) else None
+    if isinstance(raw, str):
+        try:
+            raw = json.loads(raw)
+        except ValueError:
+            raw = [raw]
+    out = []
+    for p in raw or []:
+        if isinstance(p, str):
+            p = {"text": p}
+        if not isinstance(p, dict):
+            continue
+        text = str(p.get("text") or p.get("content") or p.get("paragraph") or "").strip()
+        ids = p.get("post_ids") or []
+        if isinstance(ids, str):
+            ids = [int(x) for x in ids.replace("[", " ").replace("]", " ").replace(",", " ").split() if x.isdigit()]
+        if text:
+            out.append({"text": text, "post_ids": [i for i in ids if isinstance(i, int) and i in valid]})
+    return out
+
+
+def fallback_edition(day: date, stories: list[dict]) -> dict:
+    """Used only when the model returns nothing twice: the top stories' own summaries, so the
+    edition (and its audio) still goes out and the next edition's window still moves on."""
+    top = stories[:6]
+    return {"headline": top[0]["title"][:160],
+            "paragraphs": [{"text": f"{s['title']}. {s['summary']}", "post_ids": [s["id"]]} for s in top]}
+
+
 def write_edition(llm, day: date, edition: str, stories: list[dict], prev: dict | None) -> dict:
     system = string.Template(PROMPT.read_text()).safe_substitute(
         edition=edition, day=day_label(day), words=str(settings.digest_words), max_words=str(settings.digest_max_words))
@@ -142,22 +174,31 @@ def write_edition(llm, day: date, edition: str, stories: list[dict], prev: dict 
     if prev:
         previous = {"edition": f"{prev['edition'] or 'whole day'} of {prev['day']}", "headline": prev["headline"],
                     "text": " ".join(p["text"] for p in prev["summary"] or [])}
-    result = llm.structured(
-        model=settings.digest_model, system=system, tool_name="digest_summary", schema=SCHEMA, max_tokens=4000,
-        payload={"day": day_label(day), "edition": edition, "previous_edition": previous,
-                 "stories": [{k: v for k, v in {
-                     "id": s["id"], "headline": s["title"], "source": s["source_name"], "summary": s["summary"],
-                     "details": s["details"], "continuing": s["continuing"] or None, "new": s["new_in_window"],
-                     "other_outlets": s["outlets"], "importance": s["importance"],
-                     "full_text": s.get("full_text")}.items() if v not in (None, "")}
-                     for s in stories]},
-    )
     valid = {s["id"] for s in stories}
-    paragraphs = [{"text": p["text"].strip(), "post_ids": [i for i in p.get("post_ids", []) if i in valid]}
-                  for p in result.get("paragraphs", []) if p.get("text", "").strip()]
-    if not paragraphs:
-        raise RuntimeError("the summary came back empty")
-    return {"headline": (result.get("headline") or f"AI news, {day_label(day)}").strip()[:160], "paragraphs": paragraphs}
+    reasons = []
+    # Second try leaves out the full article text: the usual reason for an empty answer is one
+    # article's content making the model stop, or too much text overall.
+    for attempt, with_text in ((1, True), (2, False)):
+        result = llm.structured(
+            model=settings.digest_model, system=system, tool_name="digest_summary", schema=SCHEMA, max_tokens=4000,
+            payload={"day": day_label(day), "edition": edition, "previous_edition": previous,
+                     "stories": [{k: v for k, v in {
+                         "id": s["id"], "headline": s["title"], "source": s["source_name"], "summary": s["summary"],
+                         "details": s["details"], "continuing": s["continuing"] or None, "new": s["new_in_window"],
+                         "other_outlets": s["outlets"], "importance": s["importance"],
+                         "full_text": s.get("full_text") if with_text else None}.items() if v not in (None, "")}
+                         for s in stories]},
+        )
+        paragraphs = _paragraphs(result, valid)
+        if paragraphs:
+            headline = str(result.get("headline") or f"AI news, {day_label(day)}").strip()[:160]
+            note = None if attempt == 1 else "written without full article text after an empty first answer"
+            return {"headline": headline, "paragraphs": paragraphs, "note": note}
+        stop = getattr(llm, "last_stop_reason", None)
+        reasons.append(f"attempt {attempt}: stop_reason={stop}, keys={sorted(result) if isinstance(result, dict) else type(result).__name__}")
+        log.warning("%s edition came back empty (%s): %s", edition, reasons[-1], json.dumps(result, default=str)[:1500])
+    log.error("%s edition: model returned nothing twice, using the stories' own summaries (%s)", edition, "; ".join(reasons))
+    return {**fallback_edition(day, stories), "note": "fallback: " + "; ".join(reasons)}
 
 
 def make_edition(day: date | None = None, edition: str | None = None, llm=None, audio: bool | None = None,
@@ -235,8 +276,11 @@ def make_edition(day: date | None = None, edition: str | None = None, llm=None, 
                      post_ids = excluded.post_ids, notes = excluded.notes, status = 'ok', error = null
                    returning *""",
                 (day, edition, start, end, written["headline"], written["headline"], json.dumps(written["paragraphs"]),
-                 settings.digest_model, json.dumps(sources), [s["id"] for s in stories], notes),
+                 settings.digest_model + (f" ({written['note']})" if written.get("note") else ""),
+                 json.dumps(sources), [s["id"] for s in stories], notes),
             ).fetchone()
+        if written.get("note"):
+            result["note"] = written["note"]
         result.update({"headline": written["headline"], "stories": len(stories),
                        "full_text": sum(1 for s in stories if s.get("full_text")),
                        "words": sum(len(p["text"].split()) for p in written["paragraphs"])})

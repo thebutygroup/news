@@ -229,6 +229,10 @@ on the day's banner, each with its own read and play buttons.
   gives a short edition, and an empty one gives none.
 - **Audio.** Haiku turns each edition into a two-host script of about `PODCAST_WORDS` (500), and
   text to speech records it. That's two recordings a day.
+- **An edition always goes out.** If the model returns nothing, it's asked again without the full
+  article text, which is the usual trigger. If that's empty too, the edition is built from the
+  top stories' own summaries, and `summary_model` records why. Either way the next edition's window
+  moves on, so one bad article can't stall every edition after it.
 - **Manual scans never make editions,** so testing can't spend on them. To make one by hand:
   `python -m app.digest --edition morning` (add `--dry-run` first).
 - **The morning edition covers overnight news,** which is mostly published the day before, so its
